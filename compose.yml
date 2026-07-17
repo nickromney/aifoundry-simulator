@@ -1,0 +1,46 @@
+x-python-service-hardening: &python-service-hardening
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  aifoundry-simulator:
+    <<: *python-service-hardening
+    build:
+      context: .
+      args:
+        PYTHON_BUILD_IMAGE: ${PYTHON_BUILD_IMAGE:-dhi.io/python:3.13-debian13-dev}
+        PYTHON_RUNTIME_IMAGE: ${PYTHON_RUNTIME_IMAGE:-dhi.io/python:3.13-debian13}
+        APP_UID: ${APP_UID:-65532}
+        APP_GID: ${APP_GID:-65532}
+    image: aifoundry-simulator:latest
+    ports:
+      - "${FOUNDRY_PORT:-8020}:8000"
+    environment:
+      AIFOUNDRY_CONFIG_PATH: ${AIFOUNDRY_CONFIG_PATH:-/app/examples/foundry.json}
+      FOUNDRY_LATENCY_MS: ${FOUNDRY_LATENCY_MS:-}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/foundry/health')",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks:
+      - foundry
+
+networks:
+  foundry:
+    # Stable name so other local stacks (for example the sibling APIM
+    # simulator gateway) can attach with `docker network connect aifoundry`.
+    name: aifoundry

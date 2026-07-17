@@ -1,0 +1,92 @@
+{
+  "allow_anonymous": true,
+  "trace_enabled": true,
+  "tenant_access": {
+    "enabled": true,
+    "primary_key": "local-dev-tenant-key",
+    "secondary_key": "local-dev-tenant-key-secondary"
+  },
+  "products": {
+    "ai-workloads": {
+      "name": "AI Workloads",
+      "description": "Token-metered access to the local AI Foundry simulator",
+      "require_subscription": true
+    }
+  },
+  "subscription": {
+    "required": true,
+    "header_names": ["Ocp-Apim-Subscription-Key", "X-Ocp-Apim-Subscription-Key", "api-key"],
+    "subscriptions": {
+      "ai-team-alpha": {
+        "id": "sub-ai-team-alpha",
+        "name": "ai-team-alpha",
+        "keys": {
+          "primary": "ai-team-alpha-key",
+          "secondary": "ai-team-alpha-key-secondary"
+        },
+        "products": ["ai-workloads"],
+        "created_by": "publisher"
+      },
+      "ai-team-beta": {
+        "id": "sub-ai-team-beta",
+        "name": "ai-team-beta",
+        "keys": {
+          "primary": "ai-team-beta-key",
+          "secondary": "ai-team-beta-key-secondary"
+        },
+        "products": ["ai-workloads"],
+        "created_by": "publisher"
+      }
+    }
+  },
+  "backends": {
+    "aifoundry-simulator": {
+      "url": "http://host.docker.internal:8020",
+      "description": "Local AI Foundry simulator (model deployments, semantic cache, content safety)"
+    }
+  },
+  "apis": {
+    "azure-openai-api": {
+      "name": "Azure OpenAI via AI Foundry simulator",
+      "path": "openai",
+      "upstream_base_url": "http://host.docker.internal:8020",
+      "upstream_path_prefix": "/openai",
+      "backend": "aifoundry-simulator",
+      "products": ["ai-workloads"],
+      "policies_xml": "<policies><inbound><set-header name=\"api-key\" exists-action=\"override\"><value>local-foundry-key-alpha</value></set-header><llm-token-limit counter-key=\"@(context.Subscription.Id)\" tokens-per-minute=\"300\" estimate-prompt-tokens=\"false\" remaining-tokens-header-name=\"x-apim-remaining-tokens\" tokens-consumed-header-name=\"x-apim-tokens-consumed\" /><llm-emit-token-metric namespace=\"ai-usage\"><dimension name=\"Subscription ID\" /><dimension name=\"API ID\" /></llm-emit-token-metric></inbound><backend /><outbound /><on-error /></policies>",
+      "operations": {
+        "chat-completions": {
+          "name": "Chat Completions (deployment)",
+          "method": "POST",
+          "url_template": "/deployments/{deploymentId}/chat/completions"
+        },
+        "embeddings": {
+          "name": "Embeddings (deployment)",
+          "method": "POST",
+          "url_template": "/deployments/{deploymentId}/embeddings"
+        }
+      }
+    },
+    "content-safety-api": {
+      "name": "Azure AI Content Safety via AI Foundry simulator",
+      "path": "contentsafety",
+      "upstream_base_url": "http://host.docker.internal:8020",
+      "upstream_path_prefix": "/contentsafety",
+      "backend": "aifoundry-simulator",
+      "products": ["ai-workloads"],
+      "policies_xml": "<policies><inbound><set-header name=\"api-key\" exists-action=\"override\"><value>local-foundry-key-alpha</value></set-header></inbound><backend /><outbound /><on-error /></policies>",
+      "operations": {
+        "text-analyze": {
+          "name": "Text Analyze",
+          "method": "POST",
+          "url_template": "/text:analyze"
+        },
+        "shield-prompt": {
+          "name": "Shield Prompt",
+          "method": "POST",
+          "url_template": "/text:shieldPrompt"
+        }
+      }
+    }
+  }
+}

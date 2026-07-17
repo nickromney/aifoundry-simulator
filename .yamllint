@@ -1,0 +1,11 @@
+extends: default
+
+ignore: |
+  .git/
+  **/.venv/
+  dist/
+
+rules:
+  document-start: disable
+  truthy: disable
+  line-length: disable
