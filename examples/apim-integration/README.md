@@ -30,12 +30,20 @@ Two network options:
 [apim.json](apim.json) in this directory is a ready-made APIM simulator
 config: an `ai-foundry` API proxying `/openai/*` to this simulator, with
 subscription keys (`api-key` accepted), a `tokens-per-minute` budget, and
-the backend set to `host.docker.internal:8020`. From the apim-simulator
-repo:
+the backend set to `host.docker.internal:8020`.
+
+The APIM container only sees files mounted from its own checkout (its
+`examples/` directory appears as `/app/examples` in the container), and the
+two repos need not live side by side on disk — so copy the config into
+wherever your apim-simulator checkout is, then reference it by its
+in-container path:
 
 ```bash
-HELLO_APIM_CONFIG_PATH=/app/examples/../../path/to/aifoundry-simulator/examples/apim-integration/apim.json make up-hello
-# or copy apim.json into the apim-simulator repo and reference it from there
+# in this repo
+cp examples/apim-integration/apim.json <your-apim-simulator-checkout>/examples/ai-foundry-backend.json
+
+# in the apim-simulator checkout
+HELLO_APIM_CONFIG_PATH=/app/examples/ai-foundry-backend.json make up-hello
 ```
 
 Then call the gateway, not the backend:
