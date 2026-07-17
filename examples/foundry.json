@@ -1,0 +1,65 @@
+{
+  "name": "local-foundry",
+  "auth": {
+    "api_keys": ["local-foundry-key-alpha", "local-foundry-key-beta"],
+    "admin_keys": ["local-foundry-admin-key"]
+  },
+  "semantic_cache": {
+    "enabled": false,
+    "score_threshold": 0.1,
+    "ttl_seconds": 300,
+    "max_entries": 512,
+    "embeddings_deployment": "text-embedding-demo"
+  },
+  "deployments": [
+    {
+      "name": "gpt-demo",
+      "model": "gpt-4o-mini",
+      "kind": "chat",
+      "latency_ms": 400,
+      "content_filter": "default",
+      "semantic_cache": {"enabled": true}
+    },
+    {
+      "name": "gpt-nofilter",
+      "model": "gpt-4o-mini",
+      "kind": "chat",
+      "content_filter": null,
+      "semantic_cache": {"enabled": false}
+    },
+    {
+      "name": "text-embedding-demo",
+      "model": "text-embedding-3-small",
+      "kind": "embeddings",
+      "dimensions": 256,
+      "content_filter": null
+    }
+  ],
+  "content_filters": [
+    {
+      "name": "default",
+      "categories": {
+        "hate": "medium",
+        "self_harm": "medium",
+        "sexual": "medium",
+        "violence": "medium"
+      },
+      "prompt_shield": true,
+      "blocklists": ["demo-blocklist"],
+      "output_filter": true
+    }
+  ],
+  "blocklists": [
+    {
+      "name": "demo-blocklist",
+      "description": "Demo terms blocked before reaching the model",
+      "items": [
+        {"text": "contoso-secret-project"},
+        {"text": "internal-codename-\\w+", "is_regex": true, "description": "Internal codenames"}
+      ]
+    }
+  ],
+  "content_safety": {
+    "simulation_triggers": true
+  }
+}

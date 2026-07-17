@@ -1,0 +1,16 @@
+.venv/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.env.*
+!.env.example
+*.log
+.coverage
+coverage.xml
+coverage-reports/
+htmlcov/
+build/
+dist/

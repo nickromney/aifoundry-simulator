@@ -1,0 +1,17 @@
+pre-commit:
+  parallel: true
+  commands:
+    ruff-format:
+      glob: "*.py"
+      run: uv run --extra dev ruff format --check {staged_files}
+    ruff-check:
+      glob: "*.py"
+      run: uv run --extra dev ruff check {staged_files}
+    yamllint:
+      glob: "*.{yaml,yml}"
+      run: uv run --extra dev yamllint {staged_files}
+
+pre-push:
+  commands:
+    local-ci:
+      run: make local-ci

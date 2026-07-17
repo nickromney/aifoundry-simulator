@@ -1,0 +1,459 @@
+# Contract coverage for the AI Foundry simulator.
+# status: supported = the wire contract mirrors the documented Azure surface;
+#         adapted   = the wire contract mirrors Azure but the verdict/content
+#                     is deterministic simulation (documented per feature).
+# tests/test_contract_matrix.py keeps this file and the pytest contract
+# markers in lockstep.
+version: 1
+scope: v0.1
+contracts:
+  - id: FDY-HEALTH
+    status: supported
+    surface: simulator
+    module: app/routes/management.py
+    doc_refs: [docs/SCOPE.md]
+    owner_tests: [tests/test_management.py::test_health]
+    assertion_kind: http-json
+
+  - id: FDY-STARTUP
+    status: supported
+    surface: simulator
+    module: app/routes/management.py
+    doc_refs: [docs/SCOPE.md]
+    owner_tests: [tests/test_management.py::test_startup]
+    assertion_kind: http-json
+
+  - id: FDY-ROOT-HINT
+    status: supported
+    surface: simulator
+    module: app/main.py
+    doc_refs: [docs/SCOPE.md]
+    owner_tests: [tests/test_management.py::test_root_hint_lists_entrypoints]
+    assertion_kind: http-json
+
+  - id: CONFIG-LOAD
+    status: supported
+    surface: config
+    module: app/config.py
+    doc_refs: [docs/SCOPE.md]
+    owner_tests:
+      - tests/test_config.py::test_load_valid_config
+      - tests/test_config.py::test_missing_file_raises
+      - tests/test_config.py::test_invalid_json_raises
+      - tests/test_config.py::test_lexicon_overrides_merge
+    assertion_kind: python-unit
+
+  - id: CONFIG-VALIDATION
+    status: supported
+    surface: config
+    module: app/config.py
+    doc_refs: [docs/SCOPE.md]
+    owner_tests:
+      - tests/test_config.py::test_deployments_required
+      - tests/test_config.py::test_duplicate_deployment_rejected
+      - tests/test_config.py::test_unknown_content_filter_reference_rejected
+      - tests/test_config.py::test_cache_requires_embeddings_deployment
+      - tests/test_config.py::test_cache_embeddings_deployment_must_be_embeddings_kind
+      - tests/test_config.py::test_score_threshold_range_enforced
+      - tests/test_config.py::test_api_keys_required_without_anonymous
+      - tests/test_config.py::test_unknown_blocklist_reference_rejected
+      - tests/test_config.py::test_unknown_category_rejected
+    assertion_kind: python-unit
+
+  - id: CONFIG-DEFAULT-FILTER
+    status: adapted
+    surface: config
+    module: app/config.py
+    doc_refs: [docs/CONTENT-SAFETY.md]
+    owner_tests: [tests/test_config.py::test_default_filter_synthesised_when_absent]
+    assertion_kind: python-unit
+
+  - id: AOAI-CHAT
+    status: adapted
+    surface: inference
+    module: app/routes/inference.py
+    doc_refs: [docs/SCOPE.md, docs/FOUNDRY-TERM-MAP.md]
+    owner_tests:
+      - tests/test_chat.py::test_azure_chat_completion
+      - tests/test_chat.py::test_messages_required
+      - tests/test_chat.py::test_invalid_json_body
+      - tests/test_chat.py::test_max_tokens_truncates
+    assertion_kind: http-json
+
+  - id: AOAI-AUTH
+    status: supported
+    surface: inference
+    module: app/auth.py
+    doc_refs: [docs/SCOPE.md]
+    owner_tests:
+      - tests/test_chat.py::test_missing_key_rejected
+      - tests/test_chat.py::test_invalid_key_rejected
+      - tests/test_chat.py::test_bearer_token_accepted
+      - tests/test_chat.py::test_anonymous_mode
+    assertion_kind: http-json
+
+  - id: AOAI-API-VERSION-REQUIRED
+    status: supported
+    surface: inference
+    module: app/routes/inference.py
+    doc_refs: [docs/SCOPE.md]
+    owner_tests: [tests/test_chat.py::test_api_version_required]
+    assertion_kind: http-json
+
+  - id: AOAI-DEPLOYMENT-NOT-FOUND
+    status: supported
+    surface: inference
+    module: app/routes/inference.py
+    doc_refs: [docs/SCOPE.md]
+    owner_tests: [tests/test_chat.py::test_unknown_deployment_404]
+    assertion_kind: http-json
+
+  - id: AOAI-OPERATION-MISMATCH
+    status: supported
+    surface: inference
+    module: app/routes/inference.py
+    doc_refs: [docs/SCOPE.md]
+    owner_tests: [tests/test_chat.py::test_chat_on_embeddings_deployment_rejected]
+    assertion_kind: http-json
+
+  - id: AOAI-CHAT-STREAM
+    status: adapted
+    surface: inference
+    module: app/engine.py
+    doc_refs: [docs/SCOPE.md]
+    owner_tests:
+      - tests/test_chat.py::test_streaming_sse
+      - tests/test_chat.py::test_streaming_include_usage
+    assertion_kind: http-sse
+
+  - id: V1-CHAT
+    status: adapted
+    surface: inference
+    module: app/routes/inference.py
+    doc_refs: [docs/SCOPE.md, docs/FOUNDRY-TERM-MAP.md]
+    owner_tests:
+      - tests/test_chat.py::test_v1_chat_routes_model_to_deployment
+      - tests/test_chat.py::test_v1_unknown_model_404
+      - tests/test_chat.py::test_v1_model_required
+    assertion_kind: http-json
+
+  - id: V1-MODELS
+    status: adapted
+    surface: inference
+    module: app/routes/inference.py
+    doc_refs: [docs/SCOPE.md]
+    owner_tests:
+      - tests/test_chat.py::test_v1_models_lists_deployments
+      - tests/test_chat.py::test_v1_get_model
+    assertion_kind: http-json
+
+  - id: V1-RESPONSES
+    status: adapted
+    surface: inference
+    module: app/routes/inference.py
+    doc_refs: [docs/SCOPE.md]
+    owner_tests:
+      - tests/test_chat.py::test_v1_responses
+      - tests/test_chat.py::test_v1_responses_stream_unsupported
+    assertion_kind: http-json
+
+  - id: MODELS-API-CHAT
+    status: adapted
+    surface: inference
+    module: app/routes/inference.py
+    doc_refs: [docs/SCOPE.md]
+    owner_tests: [tests/test_chat.py::test_model_inference_surface]
+    assertion_kind: http-json
+
+  - id: AOAI-EMBEDDINGS
+    status: adapted
+    surface: inference
+    module: app/pipeline.py
+    doc_refs: [docs/SEMANTIC-CACHE.md]
+    owner_tests:
+      - tests/test_embeddings_api.py::test_embeddings_deterministic
+      - tests/test_embeddings_api.py::test_embeddings_list_input
+      - tests/test_embeddings_api.py::test_embeddings_dimensions_param
+      - tests/test_embeddings_api.py::test_embeddings_token_array_rejected
+      - tests/test_embeddings_api.py::test_embeddings_input_required
+    assertion_kind: http-json
+
+  - id: AOAI-EMBEDDINGS-BASE64
+    status: supported
+    surface: inference
+    module: app/engine.py
+    doc_refs: [docs/SEMANTIC-CACHE.md]
+    owner_tests: [tests/test_embeddings_api.py::test_embeddings_base64_encoding]
+    assertion_kind: http-json
+
+  - id: V1-EMBEDDINGS
+    status: adapted
+    surface: inference
+    module: app/routes/inference.py
+    doc_refs: [docs/SEMANTIC-CACHE.md]
+    owner_tests: [tests/test_embeddings_api.py::test_v1_embeddings]
+    assertion_kind: http-json
+
+  - id: EMBED-SIMILARITY
+    status: adapted
+    surface: embeddings
+    module: app/embeddings.py
+    doc_refs: [docs/SEMANTIC-CACHE.md]
+    owner_tests:
+      - tests/test_embeddings_api.py::test_similarity_orders_sensibly
+      - tests/test_embeddings_api.py::test_unit_vectors
+    assertion_kind: python-unit
+
+  - id: SEMCACHE-LOOKUP-HIT
+    status: adapted
+    surface: semantic-cache
+    module: app/pipeline.py
+    doc_refs: [docs/SEMANTIC-CACHE.md]
+    owner_tests: [tests/test_semantic_cache.py::test_miss_then_hit]
+    assertion_kind: http-json
+
+  - id: SEMCACHE-THRESHOLD
+    status: adapted
+    surface: semantic-cache
+    module: app/semantic_cache.py
+    doc_refs: [docs/SEMANTIC-CACHE.md]
+    owner_tests: [tests/test_semantic_cache.py::test_dissimilar_prompt_misses]
+    assertion_kind: http-json
+
+  - id: SEMCACHE-SYSTEM-PROMPT
+    status: adapted
+    surface: semantic-cache
+    module: app/engine.py
+    doc_refs: [docs/SEMANTIC-CACHE.md]
+    owner_tests: [tests/test_semantic_cache.py::test_system_prompt_changes_cache_position]
+    assertion_kind: http-json
+
+  - id: SEMCACHE-PARTITION
+    status: adapted
+    surface: semantic-cache
+    module: app/semantic_cache.py
+    doc_refs: [docs/SEMANTIC-CACHE.md]
+    owner_tests: [tests/test_semantic_cache.py::test_partition_per_deployment]
+    assertion_kind: http-json
+
+  - id: SEMCACHE-DISABLED
+    status: supported
+    surface: semantic-cache
+    module: app/pipeline.py
+    doc_refs: [docs/SEMANTIC-CACHE.md]
+    owner_tests: [tests/test_semantic_cache.py::test_disabled_deployment_has_no_cache_headers]
+    assertion_kind: http-json
+
+  - id: SEMCACHE-STREAM-REPLAY
+    status: adapted
+    surface: semantic-cache
+    module: app/pipeline.py
+    doc_refs: [docs/SEMANTIC-CACHE.md]
+    owner_tests: [tests/test_semantic_cache.py::test_streaming_replay_on_hit]
+    assertion_kind: http-sse
+
+  - id: SEMCACHE-FLUSH
+    status: supported
+    surface: management
+    module: app/routes/management.py
+    doc_refs: [docs/SEMANTIC-CACHE.md]
+    owner_tests: [tests/test_semantic_cache.py::test_management_flush]
+    assertion_kind: http-json
+
+  - id: SEMCACHE-STATS
+    status: supported
+    surface: management
+    module: app/semantic_cache.py
+    doc_refs: [docs/SEMANTIC-CACHE.md]
+    owner_tests: [tests/test_semantic_cache.py::test_stats_and_events]
+    assertion_kind: http-json
+
+  - id: SEMCACHE-OUTPUT-FILTER-SKIP
+    status: adapted
+    surface: semantic-cache
+    module: app/pipeline.py
+    doc_refs: [docs/SEMANTIC-CACHE.md, docs/CONTENT-SAFETY.md]
+    owner_tests: [tests/test_semantic_cache.py::test_output_filtered_response_not_cached]
+    assertion_kind: http-json
+
+  - id: SEMCACHE-TTL
+    status: adapted
+    surface: semantic-cache
+    module: app/semantic_cache.py
+    doc_refs: [docs/SEMANTIC-CACHE.md]
+    owner_tests: [tests/test_semantic_cache.py::test_ttl_expiry]
+    assertion_kind: python-unit
+
+  - id: SEMCACHE-EVICTION
+    status: adapted
+    surface: semantic-cache
+    module: app/semantic_cache.py
+    doc_refs: [docs/SEMANTIC-CACHE.md]
+    owner_tests: [tests/test_semantic_cache.py::test_max_entries_eviction]
+    assertion_kind: python-unit
+
+  - id: CS-TEXT-ANALYZE
+    status: adapted
+    surface: content-safety
+    module: app/routes/content_safety_api.py
+    doc_refs: [docs/CONTENT-SAFETY.md]
+    owner_tests:
+      - tests/test_content_safety_service.py::test_analyze_safe_text
+      - tests/test_content_safety_service.py::test_analyze_lexicon_severity
+      - tests/test_content_safety_service.py::test_analyze_category_subset
+      - tests/test_content_safety_service.py::test_analyze_validation
+    assertion_kind: http-json
+
+  - id: CS-SIMULATION-TRIGGERS
+    status: adapted
+    surface: content-safety
+    module: app/content_safety.py
+    doc_refs: [docs/CONTENT-SAFETY.md]
+    owner_tests:
+      - tests/test_content_safety_service.py::test_analyze_simulation_trigger
+      - tests/test_content_safety_service.py::test_triggers_can_be_disabled
+    assertion_kind: http-json
+
+  - id: CS-OUTPUT-TYPE
+    status: adapted
+    surface: content-safety
+    module: app/routes/content_safety_api.py
+    doc_refs: [docs/CONTENT-SAFETY.md]
+    owner_tests: [tests/test_content_safety_service.py::test_analyze_output_types]
+    assertion_kind: http-json
+
+  - id: CS-BLOCKLIST-MATCH
+    status: supported
+    surface: content-safety
+    module: app/content_safety.py
+    doc_refs: [docs/CONTENT-SAFETY.md]
+    owner_tests: [tests/test_content_safety_service.py::test_analyze_blocklist_match_and_halt]
+    assertion_kind: http-json
+
+  - id: CS-SHIELD-PROMPT
+    status: adapted
+    surface: content-safety
+    module: app/routes/content_safety_api.py
+    doc_refs: [docs/CONTENT-SAFETY.md]
+    owner_tests:
+      - tests/test_content_safety_service.py::test_shield_prompt_heuristics
+      - tests/test_content_safety_service.py::test_shield_documents
+    assertion_kind: http-json
+
+  - id: CS-BLOCKLIST-CRUD
+    status: supported
+    surface: content-safety
+    module: app/routes/content_safety_api.py
+    doc_refs: [docs/CONTENT-SAFETY.md]
+    owner_tests:
+      - tests/test_content_safety_service.py::test_blocklist_crud_lifecycle
+      - tests/test_content_safety_service.py::test_blocklist_crud_guards
+    assertion_kind: http-json
+
+  - id: RAI-PROMPT-FILTER-400
+    status: adapted
+    surface: content-filter
+    module: app/pipeline.py
+    doc_refs: [docs/CONTENT-SAFETY.md]
+    owner_tests:
+      - tests/test_content_filter.py::test_prompt_trigger_blocks_with_azure_shape
+      - tests/test_content_filter.py::test_responses_surface_filters_prompt
+    assertion_kind: http-json
+
+  - id: RAI-THRESHOLDS
+    status: adapted
+    surface: content-filter
+    module: app/content_safety.py
+    doc_refs: [docs/CONTENT-SAFETY.md]
+    owner_tests:
+      - tests/test_content_filter.py::test_low_severity_passes_medium_threshold
+      - tests/test_content_filter.py::test_medium_severity_blocks_medium_threshold
+      - tests/test_content_filter.py::test_off_category_never_blocks
+      - tests/test_content_filter.py::test_low_threshold_blocks_low_severity
+    assertion_kind: http-json
+
+  - id: RAI-PROMPT-SHIELD
+    status: adapted
+    surface: content-filter
+    module: app/content_safety.py
+    doc_refs: [docs/CONTENT-SAFETY.md]
+    owner_tests:
+      - tests/test_content_filter.py::test_prompt_shield_blocks_jailbreak
+      - tests/test_content_filter.py::test_prompt_shield_can_be_disabled
+    assertion_kind: http-json
+
+  - id: RAI-BLOCKLIST
+    status: supported
+    surface: content-filter
+    module: app/content_safety.py
+    doc_refs: [docs/CONTENT-SAFETY.md]
+    owner_tests: [tests/test_content_filter.py::test_blocklist_blocks_prompt]
+    assertion_kind: http-json
+
+  - id: RAI-ANNOTATIONS
+    status: adapted
+    surface: content-filter
+    module: app/pipeline.py
+    doc_refs: [docs/CONTENT-SAFETY.md]
+    owner_tests:
+      - tests/test_content_filter.py::test_annotations_on_success
+      - tests/test_content_filter.py::test_unfiltered_deployment_has_no_annotations
+    assertion_kind: http-json
+
+  - id: RAI-OUTPUT-FILTER
+    status: adapted
+    surface: content-filter
+    module: app/pipeline.py
+    doc_refs: [docs/CONTENT-SAFETY.md]
+    owner_tests:
+      - tests/test_content_filter.py::test_output_filter_replaces_completion
+      - tests/test_content_filter.py::test_output_filter_can_be_disabled
+    assertion_kind: http-json
+
+  - id: RAI-STATS
+    status: supported
+    surface: management
+    module: app/content_safety.py
+    doc_refs: [docs/CONTENT-SAFETY.md]
+    owner_tests: [tests/test_content_filter.py::test_safety_stats_track_blocks]
+    assertion_kind: http-json
+
+  - id: MGMT-AUTH
+    status: supported
+    surface: management
+    module: app/routes/management.py
+    doc_refs: [docs/SCOPE.md]
+    owner_tests:
+      - tests/test_management.py::test_management_requires_admin_key
+      - tests/test_management.py::test_management_open_without_admin_keys
+    assertion_kind: http-json
+
+  - id: MGMT-STATUS
+    status: supported
+    surface: management
+    module: app/routes/management.py
+    doc_refs: [docs/SCOPE.md]
+    owner_tests: [tests/test_management.py::test_status_summary]
+    assertion_kind: http-json
+
+  - id: MGMT-DEPLOYMENTS
+    status: supported
+    surface: management
+    module: app/routes/management.py
+    doc_refs: [docs/SCOPE.md]
+    owner_tests: [tests/test_management.py::test_deployments_listing]
+    assertion_kind: http-json
+
+  - id: CLI-CLIENT
+    status: supported
+    surface: cli
+    module: app/cli.py
+    doc_refs: [docs/SCOPE.md]
+    owner_tests:
+      - tests/test_cli.py::test_cli_status
+      - tests/test_cli.py::test_cli_chat_shows_cache_headers
+      - tests/test_cli.py::test_cli_embed_previews_vector
+      - tests/test_cli.py::test_cli_analyze_and_shield
+      - tests/test_cli.py::test_cli_cache_stats_and_flush
+      - tests/test_cli.py::test_cli_bad_key_exits_nonzero
+    assertion_kind: cli-json
