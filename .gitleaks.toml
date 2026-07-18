@@ -6,4 +6,5 @@ description = "Demo keys shipped for local examples, tutorials, and smoke tests"
 regexes = [
   '''local-foundry-key-(alpha|beta)''',
   '''local-foundry-admin-key''',
+  '''ai-team-(alpha|beta)-key(-secondary)?''',
 ]
