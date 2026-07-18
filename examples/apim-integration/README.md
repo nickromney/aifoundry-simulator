@@ -6,36 +6,43 @@ you get the full local story: subscription keys and token budgets at the
 gateway, model deployments with semantic caching and content filtering
 behind it — the same split Azure has.
 
-> The APIM simulator's AI-gateway support (`llm-token-limit`,
-> `llm-emit-token-metric`, the `make up-ai` stack) is in flight on its
-> branch `chore/20260717-fable-review` at the time of writing; adjust paths
-> if that work lands differently.
+## The short way: `make up-ai-foundry`
 
-## 1. Start the Foundry simulator
+The APIM simulator ships this integration as a first-class stack: its
+`compose.ai-foundry.yml` overlay attaches the gateway to this repo's
+`aifoundry` Docker network and loads a config
+(`examples/ai-gateway/apim.foundry.json` in that repo) that proxies
+`/openai` and `/contentsafety` to `http://aifoundry-simulator:8000`,
+injecting the Foundry backend key via `set-header`.
 
 ```bash
-make up          # in this repo — publishes localhost:8020, network name "aifoundry"
+# in this repo — publishes localhost:8020, creates the "aifoundry" network
+make up
+
+# in your apim-simulator checkout
+make up-ai-foundry
+make smoke-ai-foundry
 ```
 
-## 2. Point an APIM simulator API at it
+`smoke-ai-foundry` asserts the whole story end to end through the gateway:
+subscription 401s, completions with real `usage` numbers feeding
+`llm-token-limit` (429 once the budget is spent), `x-semantic-cache`
+miss-then-hit, the Azure 400 `content_filter` body passing through
+unchanged, deterministic embeddings, and the Content Safety
+`text:analyze` / `text:shieldPrompt` operations.
 
-Two network options:
+Tear down in the reverse order (gateway first) — this repo's `make down`
+cannot remove the `aifoundry` network while the gateway is still attached.
 
-- **Host port (simplest, works everywhere Docker Desktop runs):** use
-  `http://host.docker.internal:8020` as the backend URL from the APIM
-  container.
-- **Shared network:** `docker network connect aifoundry <apim-container>`,
-  then use `http://aifoundry-simulator:8000`.
+## The manual way: any APIM config, host networking
 
-[apim.json](apim.json) in this directory is a ready-made APIM simulator
-config: an `ai-foundry` API proxying `/openai/*` to this simulator, with
-subscription keys (`api-key` accepted), a `tokens-per-minute` budget, and
-the backend set to `host.docker.internal:8020`.
-
-The APIM container only sees files mounted from its own checkout (its
-`examples/` directory appears as `/app/examples` in the container), and the
-two repos need not live side by side on disk — so copy the config into
-wherever your apim-simulator checkout is, then reference it by its
+[apim.json](apim.json) in this directory is the same gateway config using
+`http://host.docker.internal:8020` as the backend URL, so it works without
+the shared network (Docker Desktop resolves `host.docker.internal` out of
+the box). The APIM container only sees files mounted from its own checkout
+(its `examples/` directory appears as `/app/examples` in the container),
+and the two repos need not live side by side on disk — so copy the config
+into wherever your apim-simulator checkout is, then reference it by its
 in-container path:
 
 ```bash
@@ -65,7 +72,7 @@ What you can now demonstrate end to end, locally:
 - content filtering behind the gateway: `[simulate:violence=6]` returns the
   Azure 400 `content_filter` body through the gateway unchanged
 
-## 3. The deferred-policy story
+## The deferred-policy story
 
 The APIM simulator's ADR 0001 defers `llm-semantic-cache-lookup/-store` and
 `llm-content-safety` because they simulate other services. Those services

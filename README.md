@@ -139,7 +139,10 @@ start with a line-item error rather than failing the first request.
 
 Run the APIM-shaped gateway in front of this Foundry-shaped backend for the
 full local story — subscription keys and `llm-token-limit` budgets at the
-gateway, semantic cache and content filtering behind it:
+gateway, semantic cache and content filtering behind it. With this repo's
+`make up` running, the apim-simulator checkout brings up and verifies the
+pairing with `make up-ai-foundry && make smoke-ai-foundry`; details and a
+manual host-networking alternative in
 [examples/apim-integration](examples/apim-integration/README.md).
 
 ## Container Hardening
