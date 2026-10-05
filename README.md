@@ -1,14 +1,14 @@
 # Local AI Foundry Simulator
 
-Docker-first Azure AI Foundry lab for local model-deployment work: chat and
-embeddings endpoints with real wire shapes, **semantic caching**, and
+Docker-first Azure AI Foundry lab for local model-serving work: chat,
+embeddings, and text-only Responses endpoints with real wire shapes, **semantic caching**, and
 **content safety** — the two capabilities the sibling
 [apim-simulator](https://github.com/nickromney/apim-simulator) deliberately
 defers because they belong to the service behind the gateway, not the
 gateway. This repo is that service.
 
-Development and testing only. No model runs here: completions are
-deterministic echoes with real `usage` numbers, embeddings are
+Development and testing only. No model runs here and no agents are hosted:
+completions are deterministic echoes with real `usage` numbers, embeddings are
 deterministic feature-hash vectors, and content-safety verdicts are
 transparent simulation. Every "adapted" behaviour is labelled in
 [docs/SCOPE.md](docs/SCOPE.md) and enforced by the
@@ -88,13 +88,34 @@ annotations on success, output-side filtering. Verdicts come from
 simulation triggers, configurable lexicons, and jailbreak heuristics —
 transparent by design: [docs/CONTENT-SAFETY.md](docs/CONTENT-SAFETY.md).
 
+## Model-serving contract
+
+The simulator follows the Azure/OpenAI wire contract for the model-serving
+features it implements, while keeping the local model deterministic:
+
+- Deployment names are the inference `model` value and response `model` value.
+  The configured underlying model name is management metadata, not a second
+  routing identity.
+- Chat completions support text messages, stop sequences, token limits, SSE,
+  and streamed usage. Embeddings support text input plus `float` and `base64`
+  encoding.
+- Responses supports synchronous and text-only streaming, stored response
+  retrieval, input-item listing, and deletion. Its state is process-local.
+- Tools, function calling, multimodal input, background work, conversations,
+  MCP, and agent hosting are explicitly rejected; they are not silently
+  accepted as if they were implemented.
+
+The complete supported/adapted/deferred boundary is kept in
+[docs/SCOPE.md](docs/SCOPE.md) and locked by
+[contracts/contract_matrix.yml](contracts/contract_matrix.yml).
+
 ## Surfaces
 
 | Surface | Path | Notes |
 | --- | --- | --- |
 | Azure OpenAI deployment-scoped | `POST /openai/deployments/{d}/chat/completions`, `/embeddings` (+`?api-version=`) | SSE streaming supported |
-| Foundry v1 | `POST /openai/v1/chat/completions`, `/embeddings`, `/responses`; `GET /openai/v1/models` | `model` in body routes to a deployment |
-| Azure AI Model Inference | `POST /models/chat/completions`, `/embeddings` (+`?api-version=`) | |
+| Foundry v1 | `POST /openai/v1/chat/completions`, `/embeddings`, `/responses`; `GET /openai/v1/models`; Responses lifecycle routes | `model` in body routes to a deployment; optional `api-version=v1|preview` |
+| Azure AI Model Inference | `POST /models/chat/completions`, `/embeddings` (+`?api-version=2025-04-01`) | text-only model serving; `extra-parameters` is an explicit request header |
 | Content Safety | `POST /contentsafety/text:analyze`, `text:shieldPrompt`; blocklist CRUD (+`?api-version=`) | 2024-09-01 shapes |
 | Management | `GET /foundry/health`, `/startup`; `/foundry/management/{status,deployments,semantic-cache,content-safety}` | admin-key gated; cache flush via `DELETE` |
 
@@ -175,6 +196,7 @@ owning test.
 ## Further Reading
 
 - Scope and honest labels: [docs/SCOPE.md](docs/SCOPE.md)
+- Model-serving contracts: [docs/MODEL-SERVING.md](docs/MODEL-SERVING.md)
 - Semantic cache guide: [docs/SEMANTIC-CACHE.md](docs/SEMANTIC-CACHE.md)
 - Content safety guide: [docs/CONTENT-SAFETY.md](docs/CONTENT-SAFETY.md)
 - Azure vocabulary map: [docs/FOUNDRY-TERM-MAP.md](docs/FOUNDRY-TERM-MAP.md)

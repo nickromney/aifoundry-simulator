@@ -28,7 +28,10 @@ def is_authorized(request: Request, config: FoundryConfig) -> bool:
     if config.auth.allow_anonymous:
         return True
     key = extract_api_key(request)
-    return key is not None and (key in config.auth.api_keys or key in config.auth.admin_keys)
+    # Tenant/admin keys are management-plane credentials.  Accepting one on a
+    # data-plane route would make a local config teach the wrong Azure
+    # separation and would hide accidental credential mix-ups in tests.
+    return key is not None and key in config.auth.api_keys
 
 
 def is_admin(request: Request, config: FoundryConfig) -> bool:

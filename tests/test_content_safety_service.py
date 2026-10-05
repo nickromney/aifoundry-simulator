@@ -178,6 +178,40 @@ def test_blocklist_crud_lifecycle(client):
 
     deleted = client.delete(f"/contentsafety/text/blocklists/runtime-list?{CS_VERSION}", headers=API_HEADERS)
     assert deleted.status_code == 204
+
+
+@pytest.mark.contract("CS-BLOCKLIST-CRUD", "CS-BLOCKLIST-VALIDATION")
+def test_blocklist_upsert_validates_types_and_honours_ids(client):
+    path = f"/contentsafety/text/blocklists/demo-blocklist:addOrUpdateBlocklistItems?{CS_VERSION}"
+    invalid_bool = client.post(
+        path,
+        headers=API_HEADERS,
+        json={"blocklistItems": [{"text": "term", "isRegex": "false"}]},
+    )
+    assert invalid_bool.status_code == 400
+    invalid_batch = client.post(
+        path,
+        headers=API_HEADERS,
+        json={"blocklistItems": [{"text": "partial"}, {"text": "bad", "description": 7}]},
+    )
+    assert invalid_batch.status_code == 400
+    before = client.get(
+        f"/contentsafety/text/blocklists/demo-blocklist/blocklistItems?{CS_VERSION}", headers=API_HEADERS
+    )
+    assert all(entry["text"] != "partial" for entry in before.json()["value"])
+    added = client.post(path, headers=API_HEADERS, json={"blocklistItems": [{"text": "term"}]})
+    item = added.json()["blocklistItems"][0]
+    updated = client.post(
+        path,
+        headers=API_HEADERS,
+        json={"blocklistItems": [{"blocklistItemId": item["blocklistItemId"], "text": "updated"}]},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["blocklistItems"][0]["blocklistItemId"] == item["blocklistItemId"]
+    listed = client.get(
+        f"/contentsafety/text/blocklists/demo-blocklist/blocklistItems?{CS_VERSION}", headers=API_HEADERS
+    )
+    assert [entry["text"] for entry in listed.json()["value"]].count("term") == 0
     gone = client.get(f"/contentsafety/text/blocklists/runtime-list?{CS_VERSION}", headers=API_HEADERS)
     assert gone.status_code == 404
 
