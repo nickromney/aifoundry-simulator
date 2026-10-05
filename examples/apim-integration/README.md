@@ -6,7 +6,62 @@ you get the full local story: subscription keys and token budgets at the
 gateway, model deployments with semantic caching and content filtering
 behind it — the same split Azure has.
 
-## The short way: `make up-ai-foundry`
+## Foundry-owned pairing lab
+
+Build the gateway image once in your APIM checkout with
+`docker compose -f compose.yml build apim-simulator`. After that, this lab uses
+`apim-simulator:latest` and requires no sibling files at runtime. Start Foundry here, then the isolated gateway:
+
+```bash
+make up
+make -C examples/apim-integration up
+make -C examples/apim-integration smoke
+```
+
+The gateway listens on loopback port 8030; override with `APIM_FOUNDRY_PORT`.
+Its read-only `apim.shared-network.json` fixture points to
+`http://aifoundry-simulator:8000` on the external `aifoundry` network.
+The image's standard non-root UID/GID (65532) is explicit, with a read-only
+filesystem, tmpfs runtime configuration, dropped capabilities and
+`no-new-privileges`. Runtime gateway edits disappear on recreation.
+
+This fixture forwards deployment and v1 chat/embeddings, the v1 model list,
+Responses create/retrieve/input-items/delete, Model Inference chat/embeddings,
+and Content Safety analyze/shield. It injects the backend key after validating
+the gateway subscription. Foundry management is not published through APIM.
+It demonstrates forwarding and service ownership; it does not configure token
+metering or claim Responses token-policy accounting. Use the sibling stack
+below for the gateway token-budget demonstration.
+
+The smoke verifies gateway/direct credential boundaries, cold-cache miss and
+repeat hit, filter error forwarding, SSE usage and `[DONE]`, deterministic
+embeddings, Content Safety and Responses lifecycle. **It flushes Foundry's
+semantic cache** to establish the cold baseline and deletes the response it
+creates. It targets the default demo deployments and keys; override direct
+Foundry URL/keys with `SMOKE_FOUNDRY_BASE_URL`, `SMOKE_FOUNDRY_API_KEY`, and
+`SMOKE_FOUNDRY_ADMIN_KEY`, and gateway URL/key with
+`SMOKE_APIM_FOUNDRY_BASE_URL` and `SMOKE_APIM_FOUNDRY_KEY` when running
+`uv run python scripts/smoke_apim_integration.py` directly. Changing the backend
+key also requires updating the gateway fixture.
+
+```bash
+make -C examples/apim-integration down
+make down
+```
+
+Stop the gateway first to release its network attachment. Validate the lab
+without starting it with `make -C examples/apim-integration config`.
+
+Verified on 2026-10-05 through published host ports using local APIM image
+`f6e7cbc153c2` and Foundry image `014681e1e494`. The Foundry-owned smoke passed
+against the rebuilt container. The sibling's `scripts/smoke_ai_foundry.py` also
+passed against a temporary token-policy fixture: the gateway returned 429 after
+four budget-filling requests, while the second subscription remained 200.
+The forwarding fixture was restored and its smoke repeated afterward. These
+results establish the exercised local contracts; Responses token metering
+remains outside this lab's claims.
+
+## Sibling-owned stack: `make up-ai-foundry`
 
 The APIM simulator ships this integration as a first-class stack: its
 `compose.ai-foundry.yml` overlay attaches the gateway to this repo's

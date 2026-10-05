@@ -164,7 +164,10 @@ gateway, semantic cache and content filtering behind it. With this repo's
 `make up` running, the apim-simulator checkout brings up and verifies the
 pairing with `make up-ai-foundry && make smoke-ai-foundry`; details and a
 manual host-networking alternative in
-[examples/apim-integration](examples/apim-integration/README.md).
+[examples/apim-integration](examples/apim-integration/README.md). This repo also
+owns a forwarding lab: once the sibling gateway image is built, run
+`make pairing-up && make pairing-smoke` (gateway on localhost:8030). Run
+`make pairing-down` before `make down`.
 
 ## Container Hardening
 
@@ -195,6 +198,8 @@ owning test.
 
 ## Further Reading
 
+- Shared simulator design and APIM lessons: [docs/SIMULATOR-DESIGN.md](docs/SIMULATOR-DESIGN.md)
+- Measured performance and repeatable profiling: [docs/FOUNDRY-PERFORMANCE.md](docs/FOUNDRY-PERFORMANCE.md)
 - Scope and honest labels: [docs/SCOPE.md](docs/SCOPE.md)
 - Model-serving contracts: [docs/MODEL-SERVING.md](docs/MODEL-SERVING.md)
 - Semantic cache guide: [docs/SEMANTIC-CACHE.md](docs/SEMANTIC-CACHE.md)

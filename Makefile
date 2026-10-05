@@ -43,6 +43,9 @@ help:
 	@printf $(HELP_FMT) "benchmark" "Measure CPU work (BENCHMARK_SCENARIO=embeddings|cache-hit|cache-miss)"
 	@printf $(HELP_FMT) "profile" "Write a CPU profile to .run/foundry.prof"
 	@printf $(HELP_FMT) "golden-check" "Verify deterministic embeddings/cache behavior against saved outputs"
+	@printf $(HELP_FMT) "pairing-up" "Start the APIM pairing lab on localhost:8030 (Foundry must be up)"
+	@printf $(HELP_FMT) "pairing-smoke" "Verify the APIM/Foundry request contract through host ports"
+	@printf $(HELP_FMT) "pairing-down" "Stop the pairing gateway before stopping Foundry"
 
 prereqs:
 	@command -v docker >/dev/null 2>&1 || { echo "docker is required"; exit 1; }
@@ -100,6 +103,7 @@ lint-yaml:
 
 compose-config:
 	$(COMPOSE) config --quiet
+	$(MAKE) -C examples/apim-integration config
 
 local-ci:
 	@command -v gitleaks >/dev/null 2>&1 || { echo "gitleaks is required for local CI"; exit 1; }
@@ -121,3 +125,13 @@ golden-check:
 	$(UV_RUN) --extra dev python scripts/benchmark_foundry.py --golden > .run/foundry-golden.json
 	cmp docs/performance/foundry-golden.json .run/foundry-golden.json
 	shasum -a 256 -c docs/performance/golden_checksums.txt
+
+.PHONY: pairing-up pairing-smoke pairing-down
+pairing-up:
+	$(MAKE) -C examples/apim-integration up
+
+pairing-smoke:
+	$(MAKE) -C examples/apim-integration smoke
+
+pairing-down:
+	$(MAKE) -C examples/apim-integration down
