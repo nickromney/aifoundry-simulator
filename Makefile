@@ -26,7 +26,7 @@ help:
 	@printf $(HELP_FMT) "logs" "Follow simulator logs"
 	@printf $(HELP_FMT) "build" "Build the container image"
 	@printf "\nSmoke tests (need a running stack):\n"
-	@printf $(HELP_FMT) "smoke" "Run every smoke script"
+	@printf $(HELP_FMT) "smoke" "Run all direct Foundry smoke tests"
 	@printf $(HELP_FMT) "smoke-foundry" "Core surfaces: chat, embeddings, v1, auth, management"
 	@printf $(HELP_FMT) "smoke-cache" "Semantic cache: miss/hit, threshold, streaming replay"
 	@printf $(HELP_FMT) "smoke-safety" "Content safety: analyze, shield, blocklists, filtering"
@@ -43,8 +43,10 @@ help:
 	@printf $(HELP_FMT) "benchmark" "Measure CPU work (BENCHMARK_SCENARIO=embeddings|cache-hit|cache-miss)"
 	@printf $(HELP_FMT) "profile" "Write a CPU profile to .run/foundry.prof"
 	@printf $(HELP_FMT) "golden-check" "Verify deterministic embeddings/cache behavior against saved outputs"
-	@printf $(HELP_FMT) "pairing-up" "Start the APIM pairing lab on localhost:8030 (Foundry must be up)"
-	@printf $(HELP_FMT) "pairing-smoke" "Verify the APIM/Foundry request contract through host ports"
+	@printf "\nAPIM + Foundry pairing:\n"
+	@printf $(HELP_FMT) "pairing-up" "Start the APIM gateway on localhost:8030 (run make up first)"
+	@printf $(HELP_FMT) "pairing-smoke" "Check APIM forwarding: auth, cache miss/hit, content safety, streaming, embeddings, Responses"
+	@printf $(HELP_FMT) "" "Needs Foundry and the pairing gateway running; clears Foundry's semantic cache"
 	@printf $(HELP_FMT) "pairing-down" "Stop the pairing gateway before stopping Foundry"
 
 prereqs:
