@@ -11,6 +11,10 @@ export FOUNDRY_PORT SMOKE_FOUNDRY_BASE_URL
 
 HELP_FMT := "  %-24s %s\n"
 
+BENCHMARK_SCENARIO ?= embeddings
+BENCHMARK_REQUESTS ?= 1000
+BENCHMARK_ENTRIES ?= 128
+
 .PHONY: help prereqs hooks build up down restart logs smoke smoke-foundry smoke-cache smoke-safety test fmt lint lint-check lint-yaml compose-config local-ci
 
 help:
@@ -36,6 +40,9 @@ help:
 	@printf $(HELP_FMT) "local-ci" "gitleaks + lint + test + compose-config (pre-push gate)"
 	@printf $(HELP_FMT) "hooks" "Install lefthook git hooks"
 	@printf $(HELP_FMT) "prereqs" "Check Docker and uv are ready"
+	@printf $(HELP_FMT) "benchmark" "Measure CPU work (BENCHMARK_SCENARIO=embeddings|cache-hit|cache-miss)"
+	@printf $(HELP_FMT) "profile" "Write a CPU profile to .run/foundry.prof"
+	@printf $(HELP_FMT) "golden-check" "Verify deterministic embeddings/cache behavior against saved outputs"
 
 prereqs:
 	@command -v docker >/dev/null 2>&1 || { echo "docker is required"; exit 1; }
@@ -100,3 +107,17 @@ local-ci:
 	@$(MAKE) --no-print-directory lint
 	@$(MAKE) --no-print-directory test
 	@$(MAKE) --no-print-directory compose-config
+
+.PHONY: benchmark profile golden-check
+benchmark:
+	$(UV_RUN) --extra dev python scripts/benchmark_foundry.py --scenario $(BENCHMARK_SCENARIO) --requests $(BENCHMARK_REQUESTS) --entries $(BENCHMARK_ENTRIES)
+
+profile:
+	mkdir -p .run
+	$(UV_RUN) --extra dev python scripts/benchmark_foundry.py --scenario $(BENCHMARK_SCENARIO) --requests $(BENCHMARK_REQUESTS) --entries $(BENCHMARK_ENTRIES) --profile .run/foundry.prof
+
+golden-check:
+	mkdir -p .run
+	$(UV_RUN) --extra dev python scripts/benchmark_foundry.py --golden > .run/foundry-golden.json
+	cmp docs/performance/foundry-golden.json .run/foundry-golden.json
+	shasum -a 256 -c docs/performance/golden_checksums.txt

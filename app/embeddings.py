@@ -17,18 +17,28 @@ from __future__ import annotations
 import hashlib
 import math
 import re
+from functools import lru_cache
 
 _WORD_RE = re.compile(r"[a-z0-9']+")
 _WORD_WEIGHT = 3.0
 _TRIGRAM_WEIGHT = 1.0
 
 
-def _bucket_and_sign(feature: str, dimensions: int) -> tuple[int, float]:
+@lru_cache(maxsize=1024)
+def _cached_bucket_and_sign(feature: str, dimensions: int) -> tuple[int, float]:
     digest = hashlib.blake2b(feature.encode("utf-8"), digest_size=8).digest()
     value = int.from_bytes(digest, "big")
     bucket = value % dimensions
     sign = 1.0 if (value >> 63) & 1 == 0 else -1.0
     return bucket, sign
+
+
+def _bucket_and_sign(feature: str, dimensions: int) -> tuple[int, float]:
+    # Bound both key count and retained string length; unusually long words
+    # still use the identical hash calculation without retaining their text.
+    if len(feature) > 128:
+        return _cached_bucket_and_sign.__wrapped__(feature, dimensions)
+    return _cached_bucket_and_sign(feature, dimensions)
 
 
 def embed_text(text: str, dimensions: int = 256) -> list[float]:
