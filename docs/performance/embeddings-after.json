@@ -1,0 +1,13 @@
+{
+  "scenario": "embeddings",
+  "requests": 5000,
+  "entries": 0,
+  "source_root": "/Users/nickromney/Developer/personal/aifoundry-simulator",
+  "source_sha256": "1eb294fc65027f8e41dee525ff6e18b355ca416c6bc44ccb629f0791e1011ab4",
+  "elapsed_seconds": 0.10693950000131736,
+  "operations_per_second": 46755.40843129439,
+  "p50_ms": 0.02141699951607734,
+  "p95_ms": 0.023667002096772194,
+  "p99_ms": 0.028500002372311428,
+  "peak_rss_mib": 30.3125
+}

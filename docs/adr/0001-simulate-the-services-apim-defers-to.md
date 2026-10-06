@@ -30,7 +30,7 @@ second simulator that plays the Foundry side of the conversation.
 ### D1. Build the service side, not more gateway
 
 This repository simulates the Azure AI Foundry resource surface in one local
-container: model deployments (Azure OpenAI deployment-scoped, Foundry v1,
+container: text model deployments (Azure OpenAI deployment-scoped, Foundry v1,
 and Model Inference route shapes), the Content Safety service
 (`text:analyze`, `text:shieldPrompt`, text blocklists), integrated RAI
 content filtering on deployments, and semantic caching in front of the
@@ -96,6 +96,26 @@ test gate; smoke scripts with the `retry_call`/`require` idiom; lefthook
 local gates plus `make local-ci` instead of push-triggered CI; uv with a
 seven-day dependency cooldown; Makefile help as the front door.
 
+### D6. Prefer exact local contracts over broad feature claims
+
+The model-serving surface is intentionally narrower than Microsoft's complete
+agent platform. For each implemented route, the simulator keeps the provider
+wire contract, validation, error envelope, response identity, and streaming
+event family explicit in tests and the contract matrix:
+
+- deployment names are the inference `model` identity; the configured model
+  name remains management metadata;
+- chat and embeddings reject parameters the local adapter cannot honor instead
+  of dropping them silently;
+- Responses implements text-only synchronous/streaming generation and its
+  in-memory retrieve/input-item/delete lifecycle;
+- tools, function calling, multimodal input, background/conversation state,
+  MCP, and agent hosting remain explicit unsupported boundaries.
+
+This is the useful fidelity boundary: feature coverage can be incomplete,
+but a feature that is exposed locally should not teach clients the wrong wire
+or failure semantics.
+
 ## Consequences
 
 - `make up && make smoke` demonstrates semantic caching and content safety
@@ -109,5 +129,6 @@ seven-day dependency cooldown; Makefile help as the front door.
   return real `usage` numbers so those gateway policies keep working when
   the two are composed.
 - Deferred for now, documented in docs/SCOPE.md: image analysis, protected
-  material detection, groundedness, streaming on the Responses surface, an
-  external vector store, and Entra ID token validation.
+  material detection, groundedness, tool/function calling, multimodal and
+  agent runtime features, an external vector store, and Entra ID token
+  validation.

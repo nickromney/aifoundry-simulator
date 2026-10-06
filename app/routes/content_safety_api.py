@@ -8,6 +8,7 @@ requirement follow the 2024-09-01 REST surface.
 
 from __future__ import annotations
 
+import re
 import uuid
 from typing import Any
 
@@ -192,21 +193,59 @@ async def add_or_update_blocklist_items(name: str, request: Request) -> Response
         return errors.content_safety_error(
             400, "InvalidRequestBody", "'blocklistItems' is required and must be a non-empty list."
         )
-    added: list[BlocklistItem] = []
+    parsed: list[BlocklistItem] = []
+    seen_ids: set[str] = set()
     for item_raw in items_raw:
-        if not isinstance(item_raw, dict) or not isinstance(item_raw.get("text"), str) or item_raw["text"] == "":
+        if not isinstance(item_raw, dict):
+            return errors.content_safety_error(400, "InvalidRequestBody", "Each blocklist item must be an object.")
+        unknown_fields = set(item_raw) - {"blocklistItemId", "description", "isRegex", "text"}
+        if unknown_fields:
             return errors.content_safety_error(
-                400, "InvalidRequestBody", "Each blocklist item must be an object with a non-empty 'text'."
+                400,
+                "InvalidRequestBody",
+                f"Unsupported blocklist item field(s): {', '.join(sorted(unknown_fields))}.",
             )
+        text = item_raw.get("text")
+        if not isinstance(text, str) or text == "":
+            return errors.content_safety_error(
+                400, "InvalidRequestBody", "Each blocklist item must have a non-empty string 'text'."
+            )
+        item_id = item_raw.get("blocklistItemId")
+        if item_id is not None and (not isinstance(item_id, str) or item_id == ""):
+            return errors.content_safety_error(
+                400, "InvalidRequestBody", "'blocklistItemId' must be a non-empty string."
+            )
+        if item_id is not None and item_id in seen_ids:
+            return errors.content_safety_error(400, "InvalidRequestBody", "'blocklistItemId' values must be unique.")
+        if item_id is not None:
+            seen_ids.add(item_id)
+        is_regex = item_raw.get("isRegex", False)
+        if not isinstance(is_regex, bool):
+            return errors.content_safety_error(400, "InvalidRequestBody", "'isRegex' must be a boolean.")
+        description = item_raw.get("description", "")
+        if not isinstance(description, str):
+            return errors.content_safety_error(400, "InvalidRequestBody", "'description' must be a string.")
+        if is_regex:
+            try:
+                re.compile(text)
+            except re.error as exc:
+                return errors.content_safety_error(400, "InvalidRequestBody", f"Invalid regular expression: {exc}")
         item = BlocklistItem(
-            item_id=uuid.uuid4().hex,
-            text=item_raw["text"],
-            is_regex=bool(item_raw.get("isRegex", False)),
-            description=str(item_raw.get("description", "")),
+            item_id=item_id or uuid.uuid4().hex,
+            text=text,
+            is_regex=is_regex,
+            description=description,
         )
-        blocklist.items.append(item)
-        added.append(item)
-    return JSONResponse(content={"blocklistItems": [_item_payload(item) for item in added]})
+        parsed.append(item)
+    for item in parsed:
+        existing_index = next(
+            (index for index, current in enumerate(blocklist.items) if current.item_id == item.item_id), None
+        )
+        if existing_index is None:
+            blocklist.items.append(item)
+        else:
+            blocklist.items[existing_index] = item
+    return JSONResponse(content={"blocklistItems": [_item_payload(item) for item in parsed]})
 
 
 @router.post("/text/blocklists/{name}:removeBlocklistItems", response_model=None)

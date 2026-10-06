@@ -20,9 +20,13 @@ Labels follow the sibling APIM simulator's discipline, enforced by
   `POST /openai/deployments/{deployment}/chat/completions`,
   `POST /openai/deployments/{deployment}/embeddings`
 - Foundry v1 routes (model routed by body): `POST /openai/v1/chat/completions`,
-  `/openai/v1/embeddings`, `/openai/v1/responses`, `GET /openai/v1/models`
+  `/openai/v1/embeddings`, `/openai/v1/responses`, `GET /openai/v1/models`,
+  and Responses retrieval, input-item listing, cancellation, and deletion
 - Azure AI Model Inference routes: `POST /models/chat/completions`,
-  `/models/embeddings`
+  `/models/embeddings` with the documented `2025-04-01` version (the legacy
+  `2024-05-01-preview` version is accepted too) and
+  `extra-parameters` request-header handling (`error`/`drop`; unsupported
+  pass-through is reported rather than silently ignored)
 - Auth via `api-key` header or `Authorization: Bearer`, Azure-shaped 401/404
   error envelopes, `DeploymentNotFound`, `model_not_found`,
   `MissingApiVersionParameter`
@@ -37,6 +41,13 @@ Labels follow the sibling APIM simulator's discipline, enforced by
   partitions, oldest-first eviction, hit/miss headers, SSE replay of cached
   hits, management stats/events/flush
 - SSE streaming for chat completions, including `stream_options.include_usage`
+- Text-only Responses streaming with the documented response event family;
+  synchronous Responses are retained in an in-memory resource store when
+  `store` is true
+- Strict request validation for the locally implemented text model features:
+  deployment names are the inference response `model`, unsupported parameters
+  have explicit errors, and configured/runtime blocklist regexes are compiled
+  before use
 - Config-driven everything via one JSON file; management surface under
   `/foundry/management/*`; `foundrysim` CLI as a thin HTTP client
 
@@ -47,6 +58,9 @@ Labels follow the sibling APIM simulator's discipline, enforced by
   wrong for billing)
 - Embeddings are feature-hash vectors — similarity is lexical, not semantic
   (see [SEMANTIC-CACHE.md](SEMANTIC-CACHE.md))
+- Model output is deterministic and text-only; accepted sampling and penalty
+  fields are validated for wire compatibility but do not turn the simulator
+  into a quality or randomness benchmark
 - Content safety verdicts come from simulation triggers, configurable
   lexicons, and jailbreak pattern heuristics (see
   [CONTENT-SAFETY.md](CONTENT-SAFETY.md)); severity quality is not simulated
@@ -57,7 +71,12 @@ Labels follow the sibling APIM simulator's discipline, enforced by
 
 - Image, multimodal, and audio surfaces (`image:analyze`, vision inputs)
 - Protected material detection, groundedness detection, custom categories
-- Streaming on the Responses surface; the Assistants surface
+- Tool/function calling, multimodal Responses input, background jobs,
+  conversations, MCP, and agent hosting
+- Embeddings formats beyond `float` and `base64`, token-array input, and
+  model-specific embedding task modes
+- Durable Responses state, pagination beyond the in-memory input list, and
+  cross-instance response sharing
 - Semantic caching for the Responses/embeddings surfaces (chat completions
   only, matching the APIM policy's target)
 - External cache/vector stores (Redis/RediSearch) and cross-instance state —

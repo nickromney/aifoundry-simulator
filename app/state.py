@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 
 from app.config import Blocklist, FoundryConfig
 from app.content_safety import SafetyStats
+from app.response_store import ResponseStore
 from app.semantic_cache import SemanticCache
 
 
@@ -15,6 +16,7 @@ class AppState:
     config: FoundryConfig
     semantic_cache: SemanticCache = field(default_factory=SemanticCache)
     safety_stats: SafetyStats = field(default_factory=SafetyStats)
+    responses: ResponseStore = field(default_factory=ResponseStore)
     started_at: float = field(default_factory=time.time)
 
     def __post_init__(self) -> None:

@@ -27,7 +27,11 @@ def openai_error(
 
 def azure_resource_error(status_code: int, code: str, message: str) -> JSONResponse:
     """Azure resource-style error envelope (auth failures, missing api-version)."""
-    return JSONResponse(status_code=status_code, content={"error": {"code": code, "message": message}})
+    return JSONResponse(
+        status_code=status_code,
+        content={"error": {"code": code, "message": message}},
+        headers={"x-ms-error-code": code},
+    )
 
 
 def missing_api_version() -> JSONResponse:
@@ -56,8 +60,20 @@ def unauthorized() -> JSONResponse:
     )
 
 
-def content_filter_error(content_filter_result: dict[str, Any]) -> JSONResponse:
+def content_filter_error(content_filter_result: dict[str, Any], *, model_inference: bool = False) -> JSONResponse:
     """The documented Azure OpenAI 400 returned when the prompt trips the content filter."""
+    if model_inference:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "status": 400,
+                "code": "content_filter",
+                "message": "The response was filtered",
+                "param": "messages",
+                "type": None,
+            },
+            headers={"x-ms-error-code": "content_filter"},
+        )
     return JSONResponse(
         status_code=400,
         content={
@@ -82,4 +98,43 @@ def content_filter_error(content_filter_result: dict[str, Any]) -> JSONResponse:
 
 def content_safety_error(status_code: int, code: str, message: str) -> JSONResponse:
     """Azure AI Content Safety error envelope."""
-    return JSONResponse(status_code=status_code, content={"error": {"code": code, "message": message}})
+    return JSONResponse(
+        status_code=status_code,
+        content={"error": {"code": code, "message": message}},
+        headers={"x-ms-error-code": code},
+    )
+
+
+def model_inference_error(
+    status_code: int,
+    code: str,
+    message: str,
+    *,
+    location: list[str] | None = None,
+    input_value: Any = None,
+) -> JSONResponse:
+    """Azure AI Model Inference validation envelope.
+
+    The ``/models`` family does not use the OpenAI ``{"error": ...}``
+    envelope for parameter validation.  Its documented 422 response puts the
+    location and offending value in ``detail`` alongside ``status``/``code``.
+    """
+    detail: dict[str, Any] = {}
+    if location is not None:
+        detail["loc"] = ["body", *location]
+    if input_value is not None:
+        detail["input"] = input_value
+    return JSONResponse(
+        status_code=status_code,
+        content={"status": status_code, "code": code, "detail": detail, "message": message},
+        headers={"x-ms-error-code": code},
+    )
+
+
+def response_not_found(response_id: str) -> JSONResponse:
+    return openai_error(
+        404,
+        f"No response found with id '{response_id}'.",
+        code="response_not_found",
+        error_type="invalid_request_error",
+    )

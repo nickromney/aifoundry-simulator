@@ -67,6 +67,24 @@ def smoke_v1() -> None:
             json={"model": "gpt-demo", "input": "Answer briefly"},
         )
         require(responses_api.status_code == 200, f"expected 200 from responses, got {responses_api.status_code}")
+        response_id = responses_api.json()["id"]
+        retrieved = http.get(f"/openai/v1/responses/{response_id}", headers=API_HEADERS)
+        require(retrieved.status_code == 200, f"expected stored response retrieval, got {retrieved.status_code}")
+        input_items = http.get(f"/openai/v1/responses/{response_id}/input_items", headers=API_HEADERS)
+        require(input_items.status_code == 200, f"expected response input items, got {input_items.status_code}")
+        deleted = http.delete(f"/openai/v1/responses/{response_id}", headers=API_HEADERS)
+        require(
+            deleted.status_code == 200
+            and deleted.json() == {"id": response_id, "object": "response.deleted", "deleted": True},
+            "expected response deletion",
+        )
+        streamed_response = http.post(
+            "/openai/v1/responses",
+            headers=API_HEADERS,
+            json={"model": "gpt-demo", "input": "Stream briefly", "stream": True},
+        )
+        require(streamed_response.status_code == 200, f"expected Responses stream, got {streamed_response.status_code}")
+        require("event: response.completed" in streamed_response.text, "expected Responses completion event")
 
 
 def smoke_embeddings() -> None:
@@ -79,6 +97,17 @@ def smoke_embeddings() -> None:
         "expected deterministic embeddings for identical input",
     )
     require(len(first.json()["data"][0]["embedding"]) == 256, "expected 256-dimension vector")
+
+
+def smoke_model_inference() -> None:
+    with client() as http:
+        response = http.post(
+            "/models/chat/completions?api-version=2025-04-01",
+            headers=API_HEADERS,
+            json={"model": "gpt-demo", "messages": [{"role": "user", "content": "hello"}]},
+        )
+    require(response.status_code == 200, f"expected model-inference chat, got {response.status_code}: {response.text}")
+    require(response.json()["model"] == "gpt-demo", "expected deployment name in model-inference response")
 
 
 def smoke_streaming() -> None:
@@ -106,6 +135,7 @@ def main() -> int:
     smoke_api_version_required()
     smoke_v1()
     smoke_embeddings()
+    smoke_model_inference()
     smoke_streaming()
     smoke_management()
 
@@ -114,8 +144,9 @@ def main() -> int:
     print("- missing/invalid api-key: 401")
     print(f"- azure chat completion total_tokens: {payload['usage']['total_tokens']}")
     print("- api-version enforced on deployment-scoped surface")
-    print("- v1 chat/models/responses OK")
+    print("- v1 chat/models/responses, lifecycle, and text streaming OK")
     print("- embeddings deterministic, 256 dimensions")
+    print("- model-inference chat uses deployment identity")
     print("- SSE streaming with [DONE]")
     print("- management surface admin-gated")
     return 0

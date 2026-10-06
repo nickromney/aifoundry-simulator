@@ -11,6 +11,10 @@ export FOUNDRY_PORT SMOKE_FOUNDRY_BASE_URL
 
 HELP_FMT := "  %-24s %s\n"
 
+BENCHMARK_SCENARIO ?= embeddings
+BENCHMARK_REQUESTS ?= 1000
+BENCHMARK_ENTRIES ?= 128
+
 .PHONY: help prereqs hooks build up down restart logs smoke smoke-foundry smoke-cache smoke-safety test fmt lint lint-check lint-yaml compose-config local-ci
 
 help:
@@ -22,7 +26,7 @@ help:
 	@printf $(HELP_FMT) "logs" "Follow simulator logs"
 	@printf $(HELP_FMT) "build" "Build the container image"
 	@printf "\nSmoke tests (need a running stack):\n"
-	@printf $(HELP_FMT) "smoke" "Run every smoke script"
+	@printf $(HELP_FMT) "smoke" "Run all direct Foundry smoke tests"
 	@printf $(HELP_FMT) "smoke-foundry" "Core surfaces: chat, embeddings, v1, auth, management"
 	@printf $(HELP_FMT) "smoke-cache" "Semantic cache: miss/hit, threshold, streaming replay"
 	@printf $(HELP_FMT) "smoke-safety" "Content safety: analyze, shield, blocklists, filtering"
@@ -36,6 +40,14 @@ help:
 	@printf $(HELP_FMT) "local-ci" "gitleaks + lint + test + compose-config (pre-push gate)"
 	@printf $(HELP_FMT) "hooks" "Install lefthook git hooks"
 	@printf $(HELP_FMT) "prereqs" "Check Docker and uv are ready"
+	@printf $(HELP_FMT) "benchmark" "Measure CPU work (BENCHMARK_SCENARIO=embeddings|cache-hit|cache-miss)"
+	@printf $(HELP_FMT) "profile" "Write a CPU profile to .run/foundry.prof"
+	@printf $(HELP_FMT) "golden-check" "Verify deterministic embeddings/cache behavior against saved outputs"
+	@printf "\nAPIM + Foundry pairing:\n"
+	@printf $(HELP_FMT) "pairing-up" "Start the APIM gateway on localhost:8030 (run make up first)"
+	@printf $(HELP_FMT) "pairing-smoke" "Check APIM forwarding: auth, cache miss/hit, content safety, streaming, embeddings, Responses"
+	@printf $(HELP_FMT) "" "Needs Foundry and the pairing gateway running; clears Foundry's semantic cache"
+	@printf $(HELP_FMT) "pairing-down" "Stop the pairing gateway before stopping Foundry"
 
 prereqs:
 	@command -v docker >/dev/null 2>&1 || { echo "docker is required"; exit 1; }
@@ -93,6 +105,7 @@ lint-yaml:
 
 compose-config:
 	$(COMPOSE) config --quiet
+	$(MAKE) -C examples/apim-integration config
 
 local-ci:
 	@command -v gitleaks >/dev/null 2>&1 || { echo "gitleaks is required for local CI"; exit 1; }
@@ -100,3 +113,27 @@ local-ci:
 	@$(MAKE) --no-print-directory lint
 	@$(MAKE) --no-print-directory test
 	@$(MAKE) --no-print-directory compose-config
+
+.PHONY: benchmark profile golden-check
+benchmark:
+	$(UV_RUN) --extra dev python scripts/benchmark_foundry.py --scenario $(BENCHMARK_SCENARIO) --requests $(BENCHMARK_REQUESTS) --entries $(BENCHMARK_ENTRIES)
+
+profile:
+	mkdir -p .run
+	$(UV_RUN) --extra dev python scripts/benchmark_foundry.py --scenario $(BENCHMARK_SCENARIO) --requests $(BENCHMARK_REQUESTS) --entries $(BENCHMARK_ENTRIES) --profile .run/foundry.prof
+
+golden-check:
+	mkdir -p .run
+	$(UV_RUN) --extra dev python scripts/benchmark_foundry.py --golden > .run/foundry-golden.json
+	cmp docs/performance/foundry-golden.json .run/foundry-golden.json
+	shasum -a 256 -c docs/performance/golden_checksums.txt
+
+.PHONY: pairing-up pairing-smoke pairing-down
+pairing-up:
+	$(MAKE) -C examples/apim-integration up
+
+pairing-smoke:
+	$(MAKE) -C examples/apim-integration smoke
+
+pairing-down:
+	$(MAKE) -C examples/apim-integration down

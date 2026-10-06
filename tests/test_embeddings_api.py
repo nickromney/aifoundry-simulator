@@ -62,7 +62,7 @@ def test_embeddings_input_required(client):
     assert response.status_code == 400
 
 
-@pytest.mark.contract("V1-EMBEDDINGS")
+@pytest.mark.contract("V1-EMBEDDINGS", "MODEL-DEPLOYMENT-IDENTITY")
 def test_v1_embeddings(client):
     response = client.post(
         "/openai/v1/embeddings",
@@ -70,7 +70,7 @@ def test_v1_embeddings(client):
         json={"model": "text-embedding-demo", "input": "hello"},
     )
     assert response.status_code == 200
-    assert response.json()["model"] == "text-embedding-3-small"
+    assert response.json()["model"] == "text-embedding-demo"
 
 
 @pytest.mark.contract("EMBED-SIMILARITY")

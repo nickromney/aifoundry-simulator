@@ -158,10 +158,7 @@ def match_blocklists(text: str, blocklists: list[Blocklist]) -> list[BlocklistMa
     for blocklist in blocklists:
         for item in blocklist.items:
             if item.is_regex:
-                try:
-                    hit = re.search(item.text, text, re.IGNORECASE) is not None
-                except re.error:
-                    hit = False
+                hit = re.search(item.text, text, re.IGNORECASE) is not None
             else:
                 hit = item.text.lower() in text.lower()
             if hit:

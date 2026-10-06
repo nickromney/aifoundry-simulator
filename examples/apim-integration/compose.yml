@@ -1,0 +1,27 @@
+services:
+  foundry-gateway:
+    image: apim-simulator:latest
+    pull_policy: never
+    user: "65532:65532"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:${APIM_FOUNDRY_PORT:-8030}:8000"
+    environment:
+      APIM_CONFIG_SOURCE_PATH: /config/apim.json
+      APIM_CONFIG_PATH: /tmp/foundry-gateway.json
+    volumes:
+      - ./apim.shared-network.json:/config/apim.json:ro
+    networks:
+      - aifoundry
+
+networks:
+  aifoundry:
+    external: true
+    name: aifoundry

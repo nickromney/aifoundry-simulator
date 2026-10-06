@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -263,6 +264,11 @@ def _parse_blocklist(raw: Any, index: int) -> Blocklist:
         _require(isinstance(is_regex, bool), f"{item_context}: is_regex must be a boolean")
         item_description = item_raw.get("description", "")
         _require(isinstance(item_description, str), f"{item_context}: description must be a string")
+        if is_regex:
+            try:
+                re.compile(text)
+            except re.error as exc:
+                raise ConfigError(f"{item_context}: invalid regular expression: {exc}") from exc
         items.append(
             BlocklistItem(item_id=f"{name}-{item_index}", text=text, is_regex=is_regex, description=item_description)
         )

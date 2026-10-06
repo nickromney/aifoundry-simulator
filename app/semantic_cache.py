@@ -34,6 +34,7 @@ class CacheEntry:
     payload: dict[str, Any]
     created_at: float
     hits: int = 0
+    options_key: str | None = None
 
 
 @dataclass
@@ -73,6 +74,7 @@ class SemanticCache:
         score_threshold: float,
         ttl_seconds: int,
         prompt_text: str,
+        options_key: str | None = None,
     ) -> CacheLookupResult | None:
         now = time.time()
         with self._lock:
@@ -82,6 +84,8 @@ class SemanticCache:
             if partition is not None:
                 self._prune_expired(partition, ttl_seconds, now)
                 for entry in partition.entries:
+                    if entry.options_key != options_key:
+                        continue
                     distance = cosine_distance(vector, entry.vector)
                     if best is None or distance < best[1]:
                         best = (entry, distance)
@@ -122,6 +126,7 @@ class SemanticCache:
         *,
         ttl_seconds: int,
         max_entries: int,
+        options_key: str | None = None,
     ) -> str:
         now = time.time()
         with self._lock:
@@ -133,6 +138,7 @@ class SemanticCache:
                 prompt_text=prompt_text,
                 payload=payload,
                 created_at=now,
+                options_key=options_key,
             )
             partition.entries.append(entry)
             while len(partition.entries) > max_entries:

@@ -1,0 +1,162 @@
+{
+  "allow_anonymous": true,
+  "trace_enabled": true,
+  "tenant_access": {
+    "enabled": true,
+    "primary_key": "local-dev-tenant-key",
+    "secondary_key": "local-dev-tenant-key-secondary"
+  },
+  "products": {
+    "ai-workloads": {
+      "name": "AI Workloads",
+      "description": "Local Foundry service access through an APIM gateway",
+      "require_subscription": true
+    }
+  },
+  "subscription": {
+    "required": true,
+    "header_names": [
+      "Ocp-Apim-Subscription-Key",
+      "X-Ocp-Apim-Subscription-Key",
+      "api-key"
+    ],
+    "subscriptions": {
+      "ai-team-alpha": {
+        "id": "sub-ai-team-alpha",
+        "name": "ai-team-alpha",
+        "keys": {
+          "primary": "ai-team-alpha-key",
+          "secondary": "ai-team-alpha-key-secondary"
+        },
+        "products": [
+          "ai-workloads"
+        ],
+        "created_by": "publisher"
+      },
+      "ai-team-beta": {
+        "id": "sub-ai-team-beta",
+        "name": "ai-team-beta",
+        "keys": {
+          "primary": "ai-team-beta-key",
+          "secondary": "ai-team-beta-key-secondary"
+        },
+        "products": [
+          "ai-workloads"
+        ],
+        "created_by": "publisher"
+      }
+    }
+  },
+  "backends": {
+    "aifoundry-simulator": {
+      "url": "http://aifoundry-simulator:8000",
+      "description": "Local AI Foundry simulator (model deployments, semantic cache, content safety)"
+    }
+  },
+  "apis": {
+    "azure-openai-api": {
+      "name": "Azure OpenAI via AI Foundry simulator",
+      "path": "openai",
+      "upstream_base_url": "http://aifoundry-simulator:8000",
+      "upstream_path_prefix": "/openai",
+      "backend": "aifoundry-simulator",
+      "products": [
+        "ai-workloads"
+      ],
+      "policies_xml": "<policies><inbound><set-header name=\"api-key\" exists-action=\"override\"><value>local-foundry-key-alpha</value></set-header></inbound><backend><forward-request /></backend><outbound /><on-error /></policies>",
+      "operations": {
+        "chat-completions": {
+          "name": "Chat Completions (deployment)",
+          "method": "POST",
+          "url_template": "/deployments/{deploymentId}/chat/completions"
+        },
+        "embeddings": {
+          "name": "Embeddings (deployment)",
+          "method": "POST",
+          "url_template": "/deployments/{deploymentId}/embeddings"
+        },
+        "v1-chat": {
+          "name": "v1-chat",
+          "method": "POST",
+          "url_template": "/v1/chat/completions"
+        },
+        "v1-embeddings": {
+          "name": "v1-embeddings",
+          "method": "POST",
+          "url_template": "/v1/embeddings"
+        },
+        "v1-models": {
+          "name": "v1-models",
+          "method": "GET",
+          "url_template": "/v1/models"
+        },
+        "responses-create": {
+          "name": "responses-create",
+          "method": "POST",
+          "url_template": "/v1/responses"
+        },
+        "responses-get": {
+          "name": "responses-get",
+          "method": "GET",
+          "url_template": "/v1/responses/{responseId}"
+        },
+        "responses-input": {
+          "name": "responses-input",
+          "method": "GET",
+          "url_template": "/v1/responses/{responseId}/input_items"
+        },
+        "responses-delete": {
+          "name": "responses-delete",
+          "method": "DELETE",
+          "url_template": "/v1/responses/{responseId}"
+        }
+      }
+    },
+    "content-safety-api": {
+      "name": "Azure AI Content Safety via AI Foundry simulator",
+      "path": "contentsafety",
+      "upstream_base_url": "http://aifoundry-simulator:8000",
+      "upstream_path_prefix": "/contentsafety",
+      "backend": "aifoundry-simulator",
+      "products": [
+        "ai-workloads"
+      ],
+      "policies_xml": "<policies><inbound><set-header name=\"api-key\" exists-action=\"override\"><value>local-foundry-key-alpha</value></set-header></inbound><backend><forward-request /></backend><outbound /><on-error /></policies>",
+      "operations": {
+        "text-analyze": {
+          "name": "Text Analyze",
+          "method": "POST",
+          "url_template": "/text:analyze"
+        },
+        "shield-prompt": {
+          "name": "Shield Prompt",
+          "method": "POST",
+          "url_template": "/text:shieldPrompt"
+        }
+      }
+    },
+    "model-inference-api": {
+      "name": "Azure AI Model Inference",
+      "path": "models",
+      "upstream_base_url": "http://aifoundry-simulator:8000",
+      "upstream_path_prefix": "/models",
+      "backend": "aifoundry-simulator",
+      "products": [
+        "ai-workloads"
+      ],
+      "policies_xml": "<policies><inbound><set-header name=\"api-key\" exists-action=\"override\"><value>local-foundry-key-alpha</value></set-header></inbound><backend><forward-request /></backend><outbound /><on-error /></policies>",
+      "operations": {
+        "chat": {
+          "name": "Chat",
+          "method": "POST",
+          "url_template": "/chat/completions"
+        },
+        "embeddings": {
+          "name": "Embeddings",
+          "method": "POST",
+          "url_template": "/embeddings"
+        }
+      }
+    }
+  }
+}

@@ -112,6 +112,14 @@ def test_unknown_category_rejected(tmp_path):
         load_config(write_config(tmp_path, document))
 
 
+@pytest.mark.contract("CONFIG-VALIDATION", "CONFIG-REGEX-VALIDATION")
+def test_invalid_blocklist_regex_rejected(tmp_path):
+    document = base_config()
+    document["blocklists"][0]["items"][0] = {"text": "[", "is_regex": True}
+    with pytest.raises(ConfigError, match="invalid regular expression"):
+        load_config(write_config(tmp_path, document))
+
+
 @pytest.mark.contract("CONFIG-DEFAULT-FILTER")
 def test_default_filter_synthesised_when_absent(tmp_path):
     document = base_config()

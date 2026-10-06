@@ -69,7 +69,9 @@ Resource-level defaults, overridable per chat deployment:
   `embeddings-backend-id` attribute.
 - The cache key text is the role-labelled concatenation of all messages, so
   a changed system prompt occupies a different cache position.
-- Entries are partitioned per deployment, and streamed requests both hit
+- Entries are partitioned per deployment and output-affecting generation
+  options (`max_tokens`/`stop`), so a cached short completion cannot satisfy a
+  request that asked for a different limit. Streamed requests both hit
   (replayed as SSE) and store like non-streamed ones. Output-filtered
   responses are never stored.
 
