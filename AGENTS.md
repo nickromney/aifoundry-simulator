@@ -7,6 +7,8 @@ Use this file for durable, concise guidance for coding agents in this repository
 
 ## Foundry conventions
 
+- For system design, operational diagnosis, or control changes, read `docs/AGENT-OPERATING-MODEL.md` for layer ownership, evidence, and the observe/act/verify loop. Use `foundrysim inspect` for read-only runtime orientation; its observations are non-atomic.
+
 - Read `docs/SIMULATOR-DESIGN.md` before changing APIM integration, runtime state, caching, or operator UI; it carries the sibling project's design and verification lessons.
 - Keep wire behavior classified in `docs/SCOPE.md` and `contracts/contract_matrix.yml`, with owning pytest contract markers. Deployment names are inference routing identities; model names are metadata.
 - Keep mutable stores per app instance. Runtime blocklist edits, caches, counters, and Responses are process-local; config changes require app recreation.

@@ -92,3 +92,9 @@ before imports and verifies `app.__file__`, avoiding APIM's editable-install tra
 Archive all baseline helpers together and use the same harness for both sources.
 Use separate processes for cold measurements and deliberately test cache churn,
 misses and changed dimensions. Never multiply gains from different workloads.
+
+## Operating context
+
+Use the [agent operating model](AGENT-OPERATING-MODEL.md) to connect this
+feature to configuration, runtime lifetime, neighboring request paths, and
+the cheapest verification that establishes the intended claim.

@@ -90,3 +90,42 @@ def test_cli_cache_stats_and_flush(cli_runner):
 def test_cli_bad_key_exits_nonzero(cli_runner):
     exit_code, _ = cli_runner("--api-key", "wrong", "models")
     assert exit_code == 1
+
+
+@pytest.mark.contract("CLI-CLIENT")
+def test_cli_inspect_is_read_only_and_reports_partial_failure(cli_runner):
+    cli_runner("chat", "Retain this cache entry")
+    code, output = cli_runner("inspect")
+    payload = json.loads(output)
+    assert code == 0
+    assert payload["complete"] is True
+    assert payload["atomic"] is False
+    assert payload["observations"]["semantic_cache"]["body"]["stores"] == 1
+    code, output = cli_runner("--admin-key", "wrong", "inspect")
+    payload = json.loads(output)
+    assert code == 1
+    assert payload["complete"] is False
+    assert payload["observations"]["health"]["status_code"] == 200
+    assert payload["observations"]["status"]["status_code"] == 401
+    code, output = cli_runner("chat", "Retain this cache entry")
+    assert code == 0
+    assert '"x-semantic-cache": "hit"' in output
+
+
+@pytest.mark.contract("CLI-CLIENT")
+def test_cli_inspect_preserves_transport_and_non_json_failures(monkeypatch, capsys):
+    def respond(request):
+        if request.url.path == "/foundry/health":
+            raise httpx.ConnectError("secret-url", request=request)
+        return httpx.Response(503, text="unavailable")
+
+    monkeypatch.setattr(
+        cli, "_client", lambda args: httpx.Client(base_url=args.base_url, transport=httpx.MockTransport(respond))
+    )
+    assert cli.main(["--base-url", "http://localhost", "inspect"]) == 1
+    output = capsys.readouterr().out
+    payload = json.loads(output)
+    assert "secret-url" not in output
+    assert payload["observations"]["health"]["error"] == "transport_error"
+    assert payload["observations"]["startup"]["body"] == "unavailable"
+    assert len(payload["observations"]) == 6

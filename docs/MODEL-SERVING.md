@@ -77,3 +77,9 @@ four characters per token. Temperature, top-p, penalty, and seed fields are
 type/range checked for client compatibility, but do not make the local reply
 random. Embeddings are deterministic feature-hash vectors. These adaptations
 are intentional and are kept separate from the wire-level fidelity claims.
+
+## Operating context
+
+Use the [agent operating model](AGENT-OPERATING-MODEL.md) to connect this
+feature to configuration, runtime lifetime, neighboring request paths, and
+the cheapest verification that establishes the intended claim.

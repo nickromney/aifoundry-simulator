@@ -504,6 +504,8 @@ contracts:
     module: app/cli.py
     doc_refs: [docs/SCOPE.md]
     owner_tests:
+      - tests/test_cli.py::test_cli_inspect_is_read_only_and_reports_partial_failure
+      - tests/test_cli.py::test_cli_inspect_preserves_transport_and_non_json_failures
       - tests/test_cli.py::test_cli_status
       - tests/test_cli.py::test_cli_chat_shows_cache_headers
       - tests/test_cli.py::test_cli_embed_previews_vector

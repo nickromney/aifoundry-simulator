@@ -121,6 +121,14 @@ The complete supported/adapted/deferred boundary is kept in
 
 `curl http://localhost:8020/` lists every entrypoint.
 
+## Operating as an agent
+
+Start with the [agent operating model](docs/AGENT-OPERATING-MODEL.md) for
+layer ownership, observation/action loops, diagnosis, and verification costs.
+`uv run --extra dev foundrysim inspect` collects read-only health, startup,
+configuration summaries, and runtime counters as one JSON document. It reports
+partial failures and is explicitly non-atomic; it does not export configuration.
+
 ## CLI
 
 `foundrysim` is a thin HTTP client over the same surfaces (installed by
