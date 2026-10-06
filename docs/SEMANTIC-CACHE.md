@@ -121,3 +121,9 @@ Two lessons fall out of that table:
 Other deliberate simplifications, all visible in [SCOPE.md](SCOPE.md):
 in-memory only (restart clears it), chat completions only, brute-force
 search (fine at local scale), no cross-instance sharing.
+
+## Operating context
+
+Use the [agent operating model](AGENT-OPERATING-MODEL.md) to connect this
+feature to configuration, runtime lifetime, neighboring request paths, and
+the cheapest verification that establishes the intended claim.

@@ -47,6 +47,36 @@ def _show(response: httpx.Response, *, headers: tuple[str, ...] = ()) -> int:
     return 0 if response.is_success else 1
 
 
+def cmd_inspect(args: argparse.Namespace) -> int:
+    """Collect read-only evidence; each observation may see a different instant."""
+    observations = {}
+    complete = True
+    paths = {
+        "health": "/foundry/health",
+        "startup": "/foundry/startup",
+        "status": "/foundry/management/status",
+        "deployments": "/foundry/management/deployments",
+        "semantic_cache": "/foundry/management/semantic-cache",
+        "content_safety": "/foundry/management/content-safety",
+    }
+    with _client(args) as client:
+        for name, path in paths.items():
+            try:
+                response = client.get(path, headers=_admin_headers(args) if "/management/" in path else {})
+                try:
+                    body = response.json()
+                except ValueError:
+                    body = response.text
+                observations[name] = {"path": path, "status_code": response.status_code, "body": body}
+                complete = complete and response.is_success
+            except httpx.HTTPError:
+                # Transport exception strings can contain credential-bearing URLs.
+                observations[name] = {"path": path, "error": "transport_error"}
+                complete = False
+    _print({"schema_version": 1, "atomic": False, "complete": complete, "observations": observations})
+    return 0 if complete else 1
+
+
 def cmd_status(args: argparse.Namespace) -> int:
     with _client(args) as client:
         return _show(client.get("/foundry/management/status", headers=_admin_headers(args)))
@@ -168,6 +198,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    subparsers.add_parser("inspect", help="Collect read-only system evidence as one JSON document").set_defaults(
+        func=cmd_inspect
+    )
     subparsers.add_parser("status", help="Management status summary").set_defaults(func=cmd_status)
     subparsers.add_parser("deployments", help="List configured deployments").set_defaults(func=cmd_deployments)
     subparsers.add_parser("models", help="List models via /openai/v1/models").set_defaults(func=cmd_models)

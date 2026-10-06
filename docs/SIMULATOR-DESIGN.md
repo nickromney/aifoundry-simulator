@@ -4,6 +4,17 @@ Transferred from the sibling APIM simulator on 2026-10-05. This document
 records choices grounded in that project's implementation and verification;
 future UI guidance below is a design contract, not an implemented console.
 
+## Coherent system model
+
+The [agent operating model](AGENT-OPERATING-MODEL.md) links intent, contracts,
+configuration, runtime state, execution, composition and retained evidence.
+Use it when choosing a control or investigating a symptom. This document owns
+the shared lifecycle and integration constraints; feature guides own their
+behavior details. Future operator interfaces should expose evidence and action
+lifetime together, preserve partial failures, and use the same HTTP authority
+as the CLI. A console must make an observation distinguishable from a prediction
+and refresh affected evidence after a mutation.
+
 ## Service ownership and compatibility
 
 APIM owns gateway routing, subscriptions, policy execution, token budgets,

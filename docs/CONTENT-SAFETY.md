@@ -143,3 +143,9 @@ config's filter policies reference returns 409 (edit the config instead).
 prompt checks, blocks by category/jailbreak/blocklist, output filters,
 analyze/shield call counts — plus a recent-event ring. `foundrysim
 safety-stats` prints the same.
+
+## Operating context
+
+Use the [agent operating model](AGENT-OPERATING-MODEL.md) to connect this
+feature to configuration, runtime lifetime, neighboring request paths, and
+the cheapest verification that establishes the intended claim.

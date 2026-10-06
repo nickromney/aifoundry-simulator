@@ -51,6 +51,11 @@ Labels follow the sibling APIM simulator's discipline, enforced by
 - Config-driven everything via one JSON file; management surface under
   `/foundry/management/*`; `foundrysim` CLI as a thin HTTP client
 
+`foundrysim inspect` composes existing read-only endpoints into a versioned JSON
+evidence envelope; partial failures produce exit 1. It is a non-atomic client
+observation, with no new HTTP surface or hosted-agent capability. See the
+[agent operating model](AGENT-OPERATING-MODEL.md).
+
 ## Adapted (deterministic simulation, real wire shapes)
 
 - Completions echo the prompt deterministically; `usage` numbers use a
