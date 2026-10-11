@@ -16,6 +16,8 @@ Use this file for durable, concise guidance for coding agents in this repository
 - Before optimizing, read `docs/FOUNDRY-PERFORMANCE.md`; profile, preserve golden behavior and measure one lever at a time. Separate simulated latency, cache hits, and actual compute cost.
 - Keep request-option cache isolation inside deployment capacity/TTL limits; validate JSON types before set membership and apply the earliest stop/token boundary.
 
+- To prove behaviour against a running container, use `skills/verify-aifoundry-simulator/SKILL.md`. It runs an isolated compose project on loopback port 8120 and records requests and smoke transcripts. `make verify` runs the full cycle (launch, cache miss/hit, cache-stats, smoke, cleanup) and ends with `VERIFY PASS`; `make verify-dry-run` shows the plan and `make verify-test` runs the BATS contract tests.
+
 ## Codex workflow
 
 - Keep this file short, concrete, and repo-specific. Capture layout, commands, conventions, constraints, and done criteria; move repeatable procedures to scoped skills/docs.

@@ -48,6 +48,10 @@ help:
 	@printf $(HELP_FMT) "pairing-smoke" "Check APIM forwarding: auth, cache miss/hit, content safety, streaming, embeddings, Responses"
 	@printf $(HELP_FMT) "" "Needs Foundry and the pairing gateway running; clears Foundry's semantic cache"
 	@printf $(HELP_FMT) "pairing-down" "Stop the pairing gateway before stopping Foundry"
+	@printf "\nVerification skill (skills/verify-aifoundry-simulator):\n"
+	@printf $(HELP_FMT) "verify" "Prove the container end to end: launch, cache miss/hit, stats, smoke, cleanup"
+	@printf $(HELP_FMT) "verify-dry-run" "Show what make verify would do, without doing it"
+	@printf $(HELP_FMT) "verify-test" "Run the verification harness's BATS contract tests under Bash 3.2"
 
 prereqs:
 	@command -v docker >/dev/null 2>&1 || { echo "docker is required"; exit 1; }
@@ -137,3 +141,8 @@ pairing-smoke:
 
 pairing-down:
 	$(MAKE) -C examples/apim-integration down
+
+# Verification skill (skills/verify-aifoundry-simulator): isolated compose project on 127.0.0.1:8120.
+# Targets come from verify-kit: verify, verify-dry-run, verify-test.
+VERIFY_SKILL := skills/verify-aifoundry-simulator
+include $(VERIFY_SKILL)/verify.mk
