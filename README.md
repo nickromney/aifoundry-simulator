@@ -29,7 +29,10 @@ make smoke
 ```
 
 `make up` publishes the simulator on [http://localhost:8020](http://localhost:8020)
-(override with `FOUNDRY_PORT`). The default config loads three deployments:
+(override the port with `FOUNDRY_PORT`, a number only). The port is published on
+loopback by default; `FOUNDRY_BIND_ADDRESS` (default `127.0.0.1`) sets the host
+address, and `0.0.0.0` exposes it to the LAN, which you should only do deliberately.
+The default config loads three deployments:
 
 | Deployment | Kind | Filter | Cache | Latency |
 | --- | --- | --- | --- | --- |
