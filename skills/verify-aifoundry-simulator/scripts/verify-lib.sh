@@ -22,6 +22,8 @@
 #                             (both end their case with `*) vk_unknown_command ;;`, which exits 2)
 #   cmd_launch, cmd_doctor, cmd_cleanup, vk_verify_recipes
 #   vk_env_help               optional: extra environment lines for --help
+#   VK_BROWSER_SKILL=1        optional: the skill drives a web UI, so its recipes run once per
+#                             browser from vk_browsers (VERIFY_BROWSERS, default all three engines)
 #
 # Every control.sh carries the same two shellcheck directives (spelled out in README.md): a
 # file-level disable of SC2034, since VK_* settings are read here rather than in control.sh,
@@ -35,7 +37,7 @@
 # Variables such as EVIDENCE are assigned by the skill's vk_paths hook, not here.
 # shellcheck disable=SC2154
 
-VK_KIT_VERSION="1.1.1"
+VK_KIT_VERSION="1.2.0"
 VK_SCRIPT_NAME="control.sh"
 
 vk_say() { printf '%s\n' "$*"; }
@@ -67,6 +69,9 @@ Environment:
   VERIFY_BASE_DIR        state root (default: $VK_DEFAULT_BASE_DIR)
   VERIFY_EVIDENCE_ROOT   evidence root (default: $VK_DEFAULT_EVIDENCE_ROOT)
 EOF
+  if [ "${VK_BROWSER_SKILL:-0}" = 1 ]; then
+    printf '%s\n' "  VERIFY_BROWSERS        browsers to drive, space or comma separated (default: $VK_BROWSERS_ALL)"
+  fi
   if declare -F vk_env_help >/dev/null; then vk_env_help; fi
   printf '\nverify-kit %s\n' "$VK_KIT_VERSION"
 }
@@ -104,6 +109,26 @@ vk_record_revision() {
 # HHMMSS-NNN: sortable and unique within EVIDENCE, even for several calls per second.
 vk_stamp() {
   printf '%s-%03d' "$(date -u +%H%M%S)" "$(find "$EVIDENCE" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
+}
+
+# ---- browsers (web skills) -------------------------------------------------------------------
+# A web skill proves its UI in every engine it ships to, not only Chromium. vk_browsers prints
+# the browsers to drive, one per line: VERIFY_BROWSERS (space or comma separated), default all
+# three Playwright engines, duplicates dropped. An unknown name or an empty list exits 2.
+VK_BROWSERS_ALL="chromium firefox webkit"
+vk_browsers() {
+  local list b seen=" "
+  list="$(printf '%s' "${VERIFY_BROWSERS-$VK_BROWSERS_ALL}" | tr ',' ' ')"
+  for b in $list; do
+    case " $VK_BROWSERS_ALL " in
+      *" $b "*) ;;
+      *) vk_err "unknown browser '$b' in VERIFY_BROWSERS (use: $VK_BROWSERS_ALL)"; return 2 ;;
+    esac
+    case "$seen" in *" $b "*) continue ;; esac
+    seen="$seen$b "
+    printf '%s\n' "$b"
+  done
+  if [ "$seen" = " " ]; then vk_err "VERIFY_BROWSERS names no browser"; return 2; fi
 }
 
 # ---- assertions used by vk_verify_recipes ----------------------------------------------------
@@ -218,6 +243,7 @@ vk_main() {
       --dry-run) VK_DRY_RUN=1; shift ;;
       --execute) VK_EXECUTE=1; shift ;;
       --list-commands) vk_sample_commands; return 0 ;;
+      --list-browsers) if [ "${VK_BROWSER_SKILL:-0}" = 1 ]; then vk_browsers; fi; return ;;
       --) shift; break ;;
       -*) vk_err "unknown option $1"; return 2 ;;
       *) break ;;

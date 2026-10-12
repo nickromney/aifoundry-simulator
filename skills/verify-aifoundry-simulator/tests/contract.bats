@@ -180,6 +180,41 @@ sample_commands() { "$BASH32" "$SCRIPT" --list-commands; }
   assert_no_writes
 }
 
+# Web skills (VK_BROWSER_SKILL=1) only; other skills print nothing for --list-browsers.
+web_skill() { [ -n "$("$BASH32" "$SCRIPT" --list-browsers)" ]; }
+
+@test "a web skill drives chromium, firefox and webkit by default and documents VERIFY_BROWSERS" {
+  if ! web_skill; then skip "not a web skill"; fi
+  run "$BASH32" "$SCRIPT" --list-browsers
+  [ "$status" -eq 0 ]
+  [ "$output" = "$(printf 'chromium\nfirefox\nwebkit')" ]
+  run_control --help
+  [[ "$output" == *"VERIFY_BROWSERS"* ]]
+}
+
+@test "a web skill narrows to VERIFY_BROWSERS and rejects unknown or empty values" {
+  if ! web_skill; then skip "not a web skill"; fi
+  VERIFY_BROWSERS="webkit,firefox webkit" run "$BASH32" "$SCRIPT" --list-browsers
+  [ "$status" -eq 0 ]
+  [ "$output" = "$(printf 'webkit\nfirefox')" ]
+  VERIFY_BROWSERS="chromium opera" run "$BASH32" "$SCRIPT" --list-browsers
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"unknown browser 'opera'"* ]]
+  VERIFY_BROWSERS=" , " run "$BASH32" "$SCRIPT" --list-browsers
+  [ "$status" -eq 2 ]
+}
+
+@test "a web skill's verify plan names every browser it will drive" {
+  if ! web_skill; then skip "not a web skill"; fi
+  run_control --dry-run verify
+  [ "$status" -eq 0 ]
+  for b in chromium firefox webkit; do [[ "$output" == *"$b"* ]] || { echo "plan lacks $b: $output"; return 1; }; done
+  VERIFY_BROWSERS=firefox run "$BASH32" "$SCRIPT" --dry-run verify
+  [[ "$output" == *firefox* ]]
+  [[ "$output" != *webkit* ]]
+  assert_no_writes
+}
+
 @test "shellcheck is clean for control.sh, the library and every BATS file" {
   if ! command -v shellcheck >/dev/null; then skip "shellcheck not installed"; fi
   run shellcheck -x -P "$SKILL_DIR/scripts" "$SCRIPT" "$LIB" "$SKILL_DIR"/tests/*.bats
