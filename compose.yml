@@ -20,7 +20,7 @@ services:
         APP_GID: ${APP_GID:-65532}
     image: aifoundry-simulator:latest
     ports:
-      - "${FOUNDRY_PORT:-8020}:8000"
+      - "${FOUNDRY_BIND_ADDRESS:-127.0.0.1}:${FOUNDRY_PORT:-8020}:8000"
     environment:
       AIFOUNDRY_CONFIG_PATH: ${AIFOUNDRY_CONFIG_PATH:-/app/examples/foundry.json}
       FOUNDRY_LATENCY_MS: ${FOUNDRY_LATENCY_MS:-}
