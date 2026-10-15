@@ -37,8 +37,9 @@
 # Variables such as EVIDENCE are assigned by the skill's vk_paths hook, not here.
 # shellcheck disable=SC2154
 
-VK_KIT_VERSION="1.2.0"
+VK_KIT_VERSION="1.2.1"
 VK_SCRIPT_NAME="control.sh"
+VK_VERIFY_ACTIVE=0
 
 vk_say() { printf '%s\n' "$*"; }
 vk_err() { printf '%s: %s\n' "$VK_SCRIPT_NAME" "$*" >&2; }
@@ -93,6 +94,12 @@ vk_resolve() {
   else
     VK_RUN_ID="$(cat "$VK_BASE_DIR/current")"
   fi
+  case "$VK_RUN_ID" in
+    ""|.|..|*[!A-Za-z0-9._-]*)
+      vk_err "invalid run id; use only letters, digits, dot, underscore or hyphen"
+      return 2
+      ;;
+  esac
 }
 
 vk_mark_current() { mkdir -p "$VK_BASE_DIR" && printf '%s\n' "$VK_RUN_ID" > "$VK_BASE_DIR/current"; }
@@ -214,8 +221,13 @@ vk_wait_for_alive() {   # <pidfile> <seconds> <command...>
 # ---- the verify cycle ------------------------------------------------------------------------
 vk_on_verify_exit() {
   local rc=$?
+  trap - EXIT
+  # Bash can leave $? as zero when nounset terminates during parameter expansion.
+  # The active marker distinguishes an interrupted verify cycle from a completed one.
+  if [ "$VK_VERIFY_ACTIVE" -eq 1 ] && [ "$rc" -eq 0 ]; then rc=1; fi
   cmd_cleanup >/dev/null 2>&1 || true
   if [ "$rc" -ne 0 ]; then vk_say "VERIFY FAIL run=$VK_RUN_ID exit=$rc evidence=${EVIDENCE:-unknown}" >&2; fi
+  exit "$rc"
 }
 vk_run_verify() {
   # Fail fast, before any build or start, when the run cannot record state or evidence.
@@ -223,11 +235,13 @@ vk_run_verify() {
     vk_fail "cannot write $VK_BASE_DIR/$VK_RUN_ID or $VK_EVIDENCE_ROOT"
     return 1
   fi
+  VK_VERIFY_ACTIVE=1
   trap vk_on_verify_exit EXIT
   cmd_launch
   cmd_doctor
   vk_verify_recipes
   cmd_cleanup
+  VK_VERIFY_ACTIVE=0
   trap - EXIT
   vk_say "VERIFY PASS run=$VK_RUN_ID evidence=$EVIDENCE"
 }
@@ -252,6 +266,9 @@ vk_main() {
   VK_CMD="${1:-}"
   if [ $# -gt 0 ]; then shift; fi
   vk_resolve
+  if [ "${VK_BROWSER_SKILL:-0}" = 1 ]; then
+    if vk_browsers >/dev/null; then :; else return $?; fi
+  fi
   vk_paths
 
   if [ "$VK_EXECUTE" -ne 1 ] || [ "$VK_DRY_RUN" -eq 1 ]; then
