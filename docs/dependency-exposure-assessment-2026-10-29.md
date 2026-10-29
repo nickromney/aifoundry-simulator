@@ -10,8 +10,8 @@ scan found affected locked versions; source reachability differs by finding.
 - Repository revision: `1b850d8e5cf01a730ffff2a10be9e8ddc118e51b` (`main`).
 - Python requirement: `>=3.13`; `uv.lock` resolves for that selector.
 - Resolved with CPython 3.13.18, `uv 0.13.6` (2026-10-26), and `pip-audit 2.10.1`.
-- Advisory snapshot: OSV scan dated 2026-10-29, retained at
-  `security-remediation-evidence/aifoundry-issue7-osv-20261029.json`.
+- Advisory snapshot: OSV scan dated 2026-10-29; raw JSON retained outside this
+  repository at `/Users/nickromney/Developer/personal/security-remediation-evidence/aifoundry-issue7-osv-20261029.json`.
 - Package inputs: `pyproject.toml` and `uv.lock` (both tracked at the revision above).
 - The lock resolves 28 third-party packages, all from the PyPI registry. The
   project itself is editable and is not counted as a third-party package.
@@ -83,13 +83,16 @@ entries are not separate vulnerabilities.
 - [Issue #9: Update locked AnyIO past affected process-pool and TLS ranges](https://github.com/nickromney/aifoundry-simulator/issues/9)
   tracks the two AnyIO advisories and the API reachability context.
 
-The local `uv.lock` now contains a certifi-only candidate at `2026.10.19`
-instead of the assessment baseline's `2026.6.17`. That candidate is local and
-unpublished; GitHub `main` still has `certifi==2026.6.17`. This later local
-candidate does not change the scan baseline or the advisory snapshot recorded
-above. The local lock still contains `anyio==4.14.1`; AnyIO has not been
-remediated. Issue #7's baseline finding remains valid, with #8 and #9 as its
-independently testable remediation follow-ups.
+At 2026-10-29 10:50 UTC, the local `uv.lock` contained a certifi-only
+candidate at `2026.10.19` instead of the assessment baseline's `2026.6.17`.
+At that observation, this candidate was local and unpublished; GitHub `main`
+still had `certifi==2026.6.17`. This is a point-in-time note about the local
+working tree, not a statement about later lock changes or the state after
+issue #8 merges. It does not change the scan baseline or advisory snapshot
+above. At the same observation, the local lock still contained
+`anyio==4.14.1`; AnyIO had not been remediated. Issue #7's baseline finding
+remains valid, with #8 and #9 as its independently testable remediation
+follow-ups.
 
 ## Coverage blocker and commands
 
