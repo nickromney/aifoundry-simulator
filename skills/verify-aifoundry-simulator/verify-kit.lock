@@ -1,5 +1,5 @@
-version 1.2.1
+version 1.3.7
 origin harnesses-private/nickromney/verify-kit
-sha256 scripts/verify-lib.sh 2405d9b732e5cb44471fdeb0d0838b13984264b7729bcb13bfcf2bc249ddc301
-sha256 tests/contract.bats 0eaac73ca8fcb83b0935f5de18f43fb0b6aa4f5a61f3f14996901b207728c4f4
+sha256 scripts/verify-lib.sh 5b3a93c4e16dab5863f824e3f239241573b7e135a5190b6b5fc01d90bb7a5acb
+sha256 tests/contract.bats ce66136c7e34f88e2ca94dfd53a3035fc85341c36a01a7ca4cd9ff6e65599d25
 sha256 verify.mk 168b22d4ac6ec4fea571ece2238ea3222af39bc8a826dbf79867fc9ccda0713e

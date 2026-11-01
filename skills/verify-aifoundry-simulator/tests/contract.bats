@@ -215,8 +215,200 @@ web_skill() { [ -n "$("$BASH32" "$SCRIPT" --list-browsers)" ]; }
   assert_no_writes
 }
 
+@test "a web skill rejects invalid execute scope before starting any application" {
+  if ! web_skill; then skip "not a web skill"; fi
+  VERIFY_BROWSERS=opera run_control --execute verify
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"unknown browser 'opera'"* ]]
+  [[ "$output" != *"VERIFY PASS"* ]]
+  assert_no_writes
+}
+
 @test "shellcheck is clean for control.sh, the library and every BATS file" {
   if ! command -v shellcheck >/dev/null; then skip "shellcheck not installed"; fi
   run shellcheck -x -P "$SKILL_DIR/scripts" "$SCRIPT" "$LIB" "$SKILL_DIR"/tests/*.bats
   [ "$status" -eq 0 ] || { echo "$output"; return 1; }
+}
+
+@test "source digest tolerates an unavailable caller locale without changing it" {
+  local fixture clean bad
+  fixture="$BATS_TEST_TMPDIR/source-repo"
+  clean="$BATS_TEST_TMPDIR/clean.digest"
+  bad="$BATS_TEST_TMPDIR/bad.digest"
+  git init -q "$fixture"
+  git -C "$fixture" -c user.name=Fixture -c user.email=fixture@example.invalid -c commit.gpgsign=false commit -q --allow-empty -m fixture
+  printf 'untracked source content\n' > "$fixture/untracked.txt"
+  # shellcheck disable=SC2016 # expanded by the Bash 3.2 child
+  run env LC_ALL=C "$BASH32" -c '
+    set -euo pipefail
+    source "$1"
+    VK_ROOT="$2"
+    vk_capture_source
+    printf "%s\n" "$VK_SOURCE_DIGEST" > "$3"
+  ' _ "$LIB" "$fixture" "$clean"
+  [ "$status" -eq 0 ] || return 1
+  # shellcheck disable=SC2016 # expanded by the Bash 3.2 child
+  run env LC_ALL=verify_kit_unavailable.UTF-8 "$BASH32" -c '
+    set -euo pipefail
+    source "$1"
+    VK_ROOT="$2"
+    vk_capture_source
+    [ "$LC_ALL" = verify_kit_unavailable.UTF-8 ] || exit 1
+    printf "%s\n" "$VK_SOURCE_DIGEST" > "$3"
+  ' _ "$LIB" "$fixture" "$bad"
+  [ "$status" -eq 0 ] || return 1
+  if [[ "$output" == *"perl: warning:"* ]]; then
+    printf "%s\n" "$output"
+    return 1
+  fi
+  [[ "$(cat "$clean")" =~ ^[0-9a-f]{64}$ ]] || return 1
+  cmp "$clean" "$bad"
+}
+
+source_capture_fixture() {
+  SOURCE_REPO="$BATS_TEST_TMPDIR/source-capture"
+  git init -q "$SOURCE_REPO"
+  git -C "$SOURCE_REPO" -c user.name=Fixture -c user.email=fixture@example.invalid -c commit.gpgsign=false commit -q --allow-empty -m fixture
+}
+
+@test "source capture refuses an unreadable file even when a later file is readable" {
+  source_capture_fixture
+  printf 'protected source\n' > "$SOURCE_REPO/a-protected"
+  printf 'readable source\n' > "$SOURCE_REPO/z-readable"
+  chmod 000 "$SOURCE_REPO/a-protected"
+  if cat "$SOURCE_REPO/a-protected" >/dev/null 2>&1; then
+    chmod 600 "$SOURCE_REPO/a-protected"
+    skip "current user can bypass file permissions"
+  fi
+  # shellcheck disable=SC2016 # expanded by the Bash 3.2 child
+  run "$BASH32" -c '
+    set -euo pipefail
+    source "$1"
+    VK_ROOT="$2"
+    if vk_capture_source; then exit 99; fi
+    [ "$VK_SOURCE_DIGEST" = unavailable ]
+  ' _ "$LIB" "$SOURCE_REPO"
+  chmod 600 "$SOURCE_REPO/a-protected"
+  [ "$status" -eq 0 ] || { echo "$output"; return 1; }
+}
+
+@test "source capture propagates Git symlink and final hash command failures" {
+  source_capture_fixture
+  printf 'source\n' > "$SOURCE_REPO/source.txt"
+  ln -s source.txt "$SOURCE_REPO/link"
+  local bin="$BATS_TEST_TMPDIR/failing-source-tools" stage
+  mkdir -p "$bin"
+  export SOURCE_REAL_GIT SOURCE_REAL_READLINK SOURCE_REAL_SHASUM
+  SOURCE_REAL_GIT="$(command -v git)"
+  SOURCE_REAL_READLINK="$(command -v readlink)"
+  SOURCE_REAL_SHASUM="$(command -v shasum)"
+  cat > "$bin/git" <<'SH'
+#!/bin/bash
+case "${SOURCE_FAIL_STAGE}:$3" in git-diff:diff|git-list:ls-files) exit 8 ;; esac
+exec "$SOURCE_REAL_GIT" "$@"
+SH
+  cat > "$bin/readlink" <<'SH'
+#!/bin/bash
+if [ "$SOURCE_FAIL_STAGE" = readlink ]; then exit 8; fi
+exec "$SOURCE_REAL_READLINK" "$@"
+SH
+  cat > "$bin/shasum" <<'SH'
+#!/bin/bash
+if [ "$SOURCE_FAIL_STAGE" = final-hash ] && [ "$#" -eq 2 ]; then exit 8; fi
+exec "$SOURCE_REAL_SHASUM" "$@"
+SH
+  chmod +x "$bin"/*
+  for stage in git-diff git-list readlink final-hash; do
+    # shellcheck disable=SC2016 # expanded by the Bash 3.2 child
+    run env SOURCE_FAIL_STAGE="$stage" PATH="$bin:$PATH" "$BASH32" -c '
+      set -euo pipefail
+      source "$1"
+      VK_ROOT="$2"
+      if vk_capture_source; then exit 99; fi
+      [ "$VK_SOURCE_DIGEST" = unavailable ]
+    ' _ "$LIB" "$SOURCE_REPO"
+    [ "$status" -eq 0 ] || { echo "$stage: $output"; return 1; }
+  done
+}
+
+@test "source capture refuses unreadable directories even when Git exits zero" {
+  source_capture_fixture
+  mkdir "$SOURCE_REPO/protected"
+  printf 'hidden source\n' > "$SOURCE_REPO/protected/source.txt"
+  chmod 000 "$SOURCE_REPO/protected"
+  if ls "$SOURCE_REPO/protected" >/dev/null 2>&1; then
+    chmod 700 "$SOURCE_REPO/protected"
+    skip "current user can bypass directory permissions"
+  fi
+  local git_status capture_status diagnostics
+  run env LC_ALL=C git -C "$SOURCE_REPO" ls-files --others --exclude-standard -z
+  git_status="$status"
+  diagnostics="$output"
+  # shellcheck disable=SC2016 # expanded by the Bash 3.2 child
+  run "$BASH32" -c '
+    set -euo pipefail
+    source "$1"
+    VK_ROOT="$2"
+    if vk_capture_source; then exit 99; fi
+    [ "$VK_SOURCE_DIGEST" = unavailable ]
+  ' _ "$LIB" "$SOURCE_REPO"
+  capture_status="$status"
+  chmod 700 "$SOURCE_REPO/protected"
+  [ "$git_status" -eq 0 ]
+  [[ "$diagnostics" == *"warning:"* ]]
+  [ "$capture_status" -eq 0 ] || { echo "$output"; return 1; }
+}
+
+@test "source capture rejects successful Git diagnostics and removes private temporary files" {
+  source_capture_fixture
+  printf 'source\n' > "$SOURCE_REPO/source.txt"
+  local bin="$BATS_TEST_TMPDIR/warning-source-tools" temporary="$BATS_TEST_TMPDIR/source-temporary" stage
+  mkdir -m 700 "$bin" "$temporary"
+  printf 'caller-owned temporary file\n' > "$temporary/caller-sentinel"
+  export SOURCE_WARNING_REAL_GIT
+  SOURCE_WARNING_REAL_GIT="$(command -v git)"
+  cat > "$bin/git" <<'SH'
+#!/bin/bash
+"$SOURCE_WARNING_REAL_GIT" "$@" || exit $?
+case "${SOURCE_WARN_STAGE}:$3" in
+  git-diff:diff|git-list:ls-files) printf 'warning: source enumeration was incomplete\n' >&2 ;;
+esac
+SH
+  chmod +x "$bin/git"
+  for stage in git-diff git-list; do
+    # shellcheck disable=SC2016 # expanded by the Bash 3.2 child
+    run env SOURCE_WARN_STAGE="$stage" TMPDIR="$temporary" PATH="$bin:$PATH" "$BASH32" -c '
+      set -euo pipefail
+      source "$1"
+      VK_ROOT="$2"
+      trap '"'"'printf "caller trap preserved\n" > "$3"'"'"' EXIT
+      original_trap="$(trap -p EXIT)"
+      if vk_capture_source; then exit 99; fi
+      [ "$VK_SOURCE_DIGEST" = unavailable ]
+      [ "$(trap -p EXIT)" = "$original_trap" ]
+    ' _ "$LIB" "$SOURCE_REPO" "$temporary/caller-trap"
+    [ "$status" -eq 0 ] || { echo "$stage: $output"; return 1; }
+    [[ "$output" == *"warning: source enumeration was incomplete"* ]]
+    grep -Fx 'caller trap preserved' "$temporary/caller-trap"
+    rm "$temporary/caller-trap"
+    [ -z "$(find "$temporary" -name 'verify-kit-source.*' -print -quit)" ]
+    grep -Fx 'caller-owned temporary file' "$temporary/caller-sentinel"
+  done
+}
+
+
+@test "source capture refuses a temporary directory inside its source repository" {
+  source_capture_fixture
+  printf 'source\n' > "$SOURCE_REPO/source.txt"
+  # shellcheck disable=SC2016 # expanded by the Bash 3.2 child
+  run env TMPDIR="$SOURCE_REPO" "$BASH32" -c '
+    set -euo pipefail
+    source "$1"
+    VK_ROOT="$2"
+    if vk_capture_source; then exit 99; fi
+    [ "$VK_SOURCE_DIGEST" = unavailable ]
+  ' _ "$LIB" "$SOURCE_REPO"
+  [ "$status" -eq 0 ] || { echo "$output"; return 1; }
+  [[ "$output" == *"requires TMPDIR outside the source repository"* ]]
+  [ -z "$(find "$SOURCE_REPO" -name 'verify-kit-source.*' -print -quit)" ]
 }
