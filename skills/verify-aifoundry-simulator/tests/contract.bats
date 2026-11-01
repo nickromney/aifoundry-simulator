@@ -8,6 +8,10 @@
 # behaviour (refusals, allowlists) belongs in a sibling tests/<app>.bats.
 
 setup() {
+  # Git hooks export GIT_DIR and friends; fixtures must not inherit them, or `git init` and
+  # `git commit` below would write into the repository being pushed.
+  # shellcheck disable=SC2046 # one name per variable
+  unset $(git rev-parse --local-env-vars)
   SKILL_DIR="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   SCRIPT="$SKILL_DIR/scripts/control.sh"
   LIB="$SKILL_DIR/scripts/verify-lib.sh"
@@ -411,4 +415,27 @@ SH
   [ "$status" -eq 0 ] || { echo "$output"; return 1; }
   [[ "$output" == *"requires TMPDIR outside the source repository"* ]]
   [ -z "$(find "$SOURCE_REPO" -name 'verify-kit-source.*' -print -quit)" ]
+}
+
+@test "source capture ignores a GIT_DIR inherited from a git hook" {
+  local decoy decoy_head
+  source_capture_fixture
+  # A pre-push hook in a linked worktree gets GIT_DIR=<main>/.git/worktrees/<name>.
+  decoy="$BATS_TEST_TMPDIR/decoy"
+  git init -q "$decoy"
+  git -C "$decoy" -c user.name=Decoy -c user.email=decoy@example.invalid -c commit.gpgsign=false commit -q --allow-empty -m decoy
+  git -C "$decoy" worktree add -q -b hook "$BATS_TEST_TMPDIR/decoy-wt"
+  decoy_head="$(git -C "$BATS_TEST_TMPDIR/decoy-wt" rev-parse HEAD)"
+  # shellcheck disable=SC2016 # expanded by the Bash 3.2 child
+  run env GIT_DIR="$decoy/.git/worktrees/decoy-wt" "$BASH32" -c '
+    set -euo pipefail
+    source "$1"
+    VK_ROOT="$2"
+    vk_capture_source
+    printf "%s\n" "$VK_SOURCE_REVISION"
+  ' _ "$LIB" "$SOURCE_REPO"
+  [ "$status" -eq 0 ] || { echo "$output"; return 1; }
+  [ "${lines[${#lines[@]}-1]}" = "$(git -C "$SOURCE_REPO" rev-parse HEAD)" ] || { echo "$output"; return 1; }
+  [ "$(git -C "$BATS_TEST_TMPDIR/decoy-wt" rev-parse HEAD)" = "$decoy_head" ]
+  [ "$(git --git-dir="$decoy/.git" config --bool core.bare)" = false ]
 }

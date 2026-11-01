@@ -37,7 +37,7 @@
 # Variables such as EVIDENCE are assigned by the skill's vk_paths hook, not here.
 # shellcheck disable=SC2154
 
-VK_KIT_VERSION="1.3.7"
+VK_KIT_VERSION="1.3.9"
 VK_SCRIPT_NAME="control.sh"
 VK_VERIFY_ACTIVE=0
 VK_CLEANUP_ATTEMPTED=0
@@ -48,6 +48,10 @@ vk_err() { printf '%s: %s\n' "$VK_SCRIPT_NAME" "$*" >&2; }
 vk_plan_line() { printf 'INFO dry-run: %s\n' "$*"; }
 vk_fail() { vk_say "FAIL: $*"; return 1; }
 vk_unknown_command() { vk_err "unknown command '$VK_CMD'"; return 2; }
+# Git hooks export GIT_DIR and friends; left in place they redirect `git -C <dir>` to the
+# hook's repository, so every library git call runs without them.
+# shellcheck disable=SC2046 # one -u per variable name
+vk_git() { env $(git rev-parse --local-env-vars | sed 's/^/-u /') git "$@"; }
 
 vk_usage() {
   cat <<EOF
@@ -83,7 +87,7 @@ EOF
 vk_resolve() {
   VK_SCRIPT_DIR="$(cd "$(dirname "$VK_SCRIPT")" && pwd)"
   VK_SKILL_DIR="$(cd "$VK_SCRIPT_DIR/.." && pwd)"
-  VK_ROOT="$(git -C "$VK_SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$VK_SKILL_DIR")"
+  VK_ROOT="$(vk_git -C "$VK_SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$VK_SKILL_DIR")"
   local tmp_root="${TMPDIR:-/tmp}"
   VK_DEFAULT_BASE_DIR="${VK_DEFAULT_BASE_DIR:-${tmp_root%/}/verify-$VK_APP}"
   VK_DEFAULT_EVIDENCE_ROOT="${VK_DEFAULT_EVIDENCE_ROOT:-$VK_DEFAULT_BASE_DIR}"
@@ -112,7 +116,7 @@ vk_clear_current() {
   fi
 }
 vk_record_revision() {
-  { git -C "$VK_ROOT" rev-parse HEAD 2>/dev/null || echo "not-a-git-checkout"; git -C "$VK_ROOT" status --porcelain 2>/dev/null || true; } > "$1"
+  { vk_git -C "$VK_ROOT" rev-parse HEAD 2>/dev/null || echo "not-a-git-checkout"; vk_git -C "$VK_ROOT" status --porcelain 2>/dev/null || true; } > "$1"
 }
 
 # HHMMSS-NNN: sortable and unique within EVIDENCE, even for several calls per second.
@@ -271,9 +275,9 @@ vk_claim_run() {
 }
 vk_release_run() { rmdir "$VK_BASE_DIR/.verify-kit-owners/$VK_RUN_ID" 2>/dev/null || true; }
 vk_capture_source() {
-  VK_SOURCE_REVISION="$(git -C "$VK_ROOT" rev-parse HEAD 2>/dev/null || printf 'not-a-git-checkout')"
+  VK_SOURCE_REVISION="$(vk_git -C "$VK_ROOT" rev-parse HEAD 2>/dev/null || printf 'not-a-git-checkout')"
   VK_SOURCE_DIGEST=unavailable
-  if git -C "$VK_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+  if vk_git -C "$VK_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
     VK_SOURCE_DIGEST="$(
       set -o pipefail
       trap - EXIT
@@ -286,14 +290,14 @@ vk_capture_source() {
       source_temporary="$(mktemp -d "$source_temporary_base/verify-kit-source.XXXXXXXX")" || exit 1
       trap 'rm -rf "$source_temporary"' EXIT
       {
-        git -C "$VK_ROOT" diff --binary HEAD 2>"$source_temporary/git.stderr" || {
+        vk_git -C "$VK_ROOT" diff --binary HEAD 2>"$source_temporary/git.stderr" || {
           cat "$source_temporary/git.stderr" >&2; exit 1;
         }
         if [ -s "$source_temporary/git.stderr" ]; then
           vk_err "cannot capture source: git diff reported diagnostics"
           cat "$source_temporary/git.stderr" >&2; exit 1
         fi
-        git -C "$VK_ROOT" ls-files --others --exclude-standard -z >"$source_temporary/paths" 2>"$source_temporary/git.stderr" || {
+        vk_git -C "$VK_ROOT" ls-files --others --exclude-standard -z >"$source_temporary/paths" 2>"$source_temporary/git.stderr" || {
           cat "$source_temporary/git.stderr" >&2; exit 1;
         }
         if [ -s "$source_temporary/git.stderr" ]; then
