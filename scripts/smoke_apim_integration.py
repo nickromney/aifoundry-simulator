@@ -13,6 +13,7 @@ from smoke_common import (
     BASE_URL,
     CHAT_PATH,
     EMBEDDINGS_PATH,
+    PII_PATH,
     SHIELD_PATH,
     require,
 )
@@ -96,6 +97,20 @@ def main() -> int:
             proxied.raise_for_status()
             expected.raise_for_status()
             require(proxied.json() == expected.json(), "Content Safety payload changed")
+        pii_body = {
+            "kind": "PiiEntityRecognition",
+            "parameters": {"modelVersion": "latest", "piiCategories": ["Email"]},
+            "analysisInput": {"documents": [{"id": "1", "language": "en", "text": "mail jane@contoso.com"}]},
+        }
+        proxied = gateway.post(PII_PATH, json=pii_body)
+        expected = direct.post(PII_PATH, headers=API_HEADERS, json=pii_body)
+        proxied.raise_for_status()
+        expected.raise_for_status()
+        require(proxied.json() == expected.json(), "Language PII payload changed")
+        require(
+            proxied.json()["results"]["documents"][0]["redactedText"] == "mail " + "*" * 16,
+            "Language PII redaction changed through gateway",
+        )
         created = gateway.post(
             "/openai/v1/responses", json={"model": "gpt-nofilter", "input": "pairing response lifecycle"}
         )
@@ -110,7 +125,7 @@ def main() -> int:
         require(deleted.json()["deleted"] is True, "response deletion failed")
         require(gateway.get(path).status_code == 404, "deleted response remains retrievable")
     print(
-        "APIM/Foundry pairing passed: auth boundaries, cache, filters, SSE usage, embeddings, Content Safety, Responses lifecycle"
+        "APIM/Foundry pairing passed: auth boundaries, cache, filters, SSE usage, embeddings, Content Safety, Language PII, Responses lifecycle"
     )
     return 0
 

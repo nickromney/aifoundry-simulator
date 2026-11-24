@@ -105,6 +105,14 @@ def content_safety_error(status_code: int, code: str, message: str) -> JSONRespo
     )
 
 
+def language_error(status_code: int, code: str, message: str, *, inner_code: str | None = None) -> JSONResponse:
+    """Azure AI Language error envelope (``error`` with optional ``innererror``)."""
+    error: dict[str, Any] = {"code": code, "message": message}
+    if inner_code is not None:
+        error["innererror"] = {"code": inner_code, "message": message}
+    return JSONResponse(status_code=status_code, content={"error": error}, headers={"x-ms-error-code": code})
+
+
 def model_inference_error(
     status_code: int,
     code: str,
