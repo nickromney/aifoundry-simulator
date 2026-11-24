@@ -91,6 +91,23 @@ annotations on success, output-side filtering. Verdicts come from
 simulation triggers, configurable lexicons, and jailbreak heuristics —
 transparent by design: [docs/CONTENT-SAFETY.md](docs/CONTENT-SAFETY.md).
 
+### PII detection
+
+```bash
+curl -s "http://localhost:8020/language/:analyze-text?api-version=2026-05-01" \
+  -H "Ocp-Apim-Subscription-Key: local-foundry-key-alpha" -H "content-type: application/json" \
+  -d '{"kind":"PiiEntityRecognition","analysisInput":{"documents":[{"id":"1","language":"en",
+       "text":"Mail jane@contoso.com, I am Jane Doe [simulate:pii=Person:Jane Doe]"}]}}' \
+  | jq -r '.results.documents[0].redactedText'
+# Mail ****************, I am ******** [simulate:pii=Person:********]
+```
+
+The Azure AI Language PII call APIM makes from a `send-request` policy.
+Regex detectors find emails, phone numbers, Luhn-valid card numbers, US SSNs,
+UK National Insurance numbers and IPv4 addresses; `[simulate:pii=Person:<name>]`
+forces a name. `characterMask` redaction keeps the text the same length, so a
+redacted JSON body stays valid JSON: [docs/PII.md](docs/PII.md).
+
 ## Model-serving contract
 
 The simulator follows the Azure/OpenAI wire contract for the model-serving
@@ -120,6 +137,7 @@ The complete supported/adapted/deferred boundary is kept in
 | Foundry v1 | `POST /openai/v1/chat/completions`, `/embeddings`, `/responses`; `GET /openai/v1/models`; Responses lifecycle routes | `model` in body routes to a deployment; optional `api-version=v1|preview` |
 | Azure AI Model Inference | `POST /models/chat/completions`, `/embeddings` (+`?api-version=2025-04-01`) | text-only model serving; `extra-parameters` is an explicit request header |
 | Content Safety | `POST /contentsafety/text:analyze`, `text:shieldPrompt`; blocklist CRUD (+`?api-version=`) | 2024-09-01 shapes |
+| Azure AI Language PII | `POST /language/:analyze-text?api-version=2026-05-01` | `PiiEntityRecognition` only; accepts `Ocp-Apim-Subscription-Key` |
 | Management | `GET /foundry/health`, `/startup`; `/foundry/management/{status,deployments,semantic-cache,content-safety}` | admin-key gated; cache flush via `DELETE` |
 
 `curl http://localhost:8020/` lists every entrypoint.
@@ -215,6 +233,7 @@ owning test.
 - Model-serving contracts: [docs/MODEL-SERVING.md](docs/MODEL-SERVING.md)
 - Semantic cache guide: [docs/SEMANTIC-CACHE.md](docs/SEMANTIC-CACHE.md)
 - Content safety guide: [docs/CONTENT-SAFETY.md](docs/CONTENT-SAFETY.md)
+- PII detection guide: [docs/PII.md](docs/PII.md)
 - Azure vocabulary map: [docs/FOUNDRY-TERM-MAP.md](docs/FOUNDRY-TERM-MAP.md)
 - Why this repo exists: [docs/adr/0001-simulate-the-services-apim-defers-to.md](docs/adr/0001-simulate-the-services-apim-defers-to.md)
 - APIM pairing: [examples/apim-integration](examples/apim-integration/README.md)

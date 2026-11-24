@@ -14,7 +14,7 @@ from fastapi import FastAPI
 
 from app import SERVICE_NAME, SERVICE_VERSION
 from app.config import load_config
-from app.routes import content_safety_api, inference, management
+from app.routes import content_safety_api, inference, language_api, management
 from app.state import AppState
 
 
@@ -27,6 +27,7 @@ def create_app(config_path: str | Path | None = None) -> FastAPI:
     application.include_router(inference.v1_router)
     application.include_router(inference.models_router)
     application.include_router(content_safety_api.router)
+    application.include_router(language_api.router)
     application.include_router(management.router)
 
     @application.get("/")
@@ -50,6 +51,7 @@ def create_app(config_path: str | Path | None = None) -> FastAPI:
                 "content_safety_analyze": "/contentsafety/text:analyze?api-version=2024-09-01",
                 "content_safety_shield_prompt": "/contentsafety/text:shieldPrompt?api-version=2024-09-01",
                 "content_safety_blocklists": "/contentsafety/text/blocklists?api-version=2024-09-01",
+                "language_pii": "/language/:analyze-text?api-version=2026-05-01",
                 "health": "/foundry/health",
                 "management_status": "/foundry/management/status",
             },

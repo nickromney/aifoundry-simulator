@@ -404,6 +404,83 @@ contracts:
     owner_tests: [tests/test_content_safety_service.py::test_blocklist_upsert_validates_types_and_honours_ids]
     assertion_kind: http-json
 
+  - id: LANG-PII-ANALYZE
+    status: adapted
+    surface: language
+    module: app/routes/language_api.py
+    doc_refs: [docs/PII.md]
+    owner_tests:
+      - tests/test_language_pii.py::test_pii_response_shape_offsets_and_same_length_redaction
+      - tests/test_language_pii.py::test_pii_accepts_preview_version_and_documents_without_entities
+    assertion_kind: http-json
+
+  - id: LANG-PII-DETECTORS
+    status: adapted
+    surface: language
+    module: app/pii.py
+    doc_refs: [docs/PII.md]
+    owner_tests:
+      - tests/test_language_pii.py::test_regex_detectors
+      - tests/test_language_pii.py::test_detectors_reject_invalid_values
+    assertion_kind: python-unit
+
+  - id: LANG-PII-TRIGGERS
+    status: adapted
+    surface: language
+    module: app/pii.py
+    doc_refs: [docs/PII.md]
+    owner_tests:
+      - tests/test_language_pii.py::test_person_trigger_marks_every_occurrence
+      - tests/test_language_pii.py::test_triggers_follow_simulation_trigger_switch
+    assertion_kind: http-json
+
+  - id: LANG-PII-CATEGORIES
+    status: supported
+    surface: language
+    module: app/routes/language_api.py
+    doc_refs: [docs/PII.md]
+    owner_tests:
+      - tests/test_language_pii.py::test_pii_categories_filter
+    assertion_kind: http-json
+
+  - id: LANG-PII-REDACTION
+    status: supported
+    surface: language
+    module: app/pii.py
+    doc_refs: [docs/PII.md]
+    owner_tests:
+      - tests/test_language_pii.py::test_redaction_policies
+    assertion_kind: http-json
+
+  - id: LANG-PII-AUTH
+    status: supported
+    surface: language
+    module: app/auth.py
+    doc_refs: [docs/PII.md]
+    owner_tests:
+      - tests/test_language_pii.py::test_language_auth_headers
+      - tests/test_language_pii.py::test_language_auth_rejections
+    assertion_kind: http-json
+
+  - id: LANG-PII-VALIDATION
+    status: adapted
+    surface: language
+    module: app/routes/language_api.py
+    doc_refs: [docs/PII.md]
+    owner_tests:
+      - tests/test_language_pii.py::test_api_version_required_and_known
+      - tests/test_language_pii.py::test_request_validation
+    assertion_kind: http-json
+
+  - id: LANG-PII-LIMITS
+    status: adapted
+    surface: language
+    module: app/routes/language_api.py
+    doc_refs: [docs/PII.md]
+    owner_tests:
+      - tests/test_language_pii.py::test_document_size_limit_returns_per_document_error
+    assertion_kind: http-json
+
   - id: RAI-PROMPT-FILTER-400
     status: adapted
     surface: content-filter

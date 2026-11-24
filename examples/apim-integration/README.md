@@ -27,15 +27,17 @@ filesystem, tmpfs runtime configuration, dropped capabilities and
 
 This fixture forwards deployment and v1 chat/embeddings, the v1 model list,
 Responses create/retrieve/input-items/delete, Model Inference chat/embeddings,
-and Content Safety analyze/shield. It injects the backend key after validating
-the gateway subscription. Foundry management is not published through APIM.
+Content Safety analyze/shield, and Language PII `:analyze-text`. It injects the
+backend key after validating the gateway subscription (for Language, it
+overrides the `Ocp-Apim-Subscription-Key` header the client used for the
+gateway subscription with the Foundry key). Foundry management is not published through APIM.
 It demonstrates forwarding and service ownership; it does not configure token
 metering or claim Responses token-policy accounting. Use the sibling stack
 below for the gateway token-budget demonstration.
 
 The smoke verifies gateway/direct credential boundaries, cold-cache miss and
 repeat hit, filter error forwarding, SSE usage and `[DONE]`, deterministic
-embeddings, Content Safety and Responses lifecycle. **It flushes Foundry's
+embeddings, Content Safety, Language PII redaction and Responses lifecycle. **It flushes Foundry's
 semantic cache** to establish the cold baseline and deletes the response it
 creates. It targets the default demo deployments and keys; override direct
 Foundry URL/keys with `SMOKE_FOUNDRY_BASE_URL`, `SMOKE_FOUNDRY_API_KEY`, and
@@ -138,6 +140,12 @@ now exist locally:
   with the 2024-09-01 wire shapes, so a future APIM-side implementation can
   target `http://aifoundry-simulator:8000/contentsafety` (or
   `host.docker.internal:8020`) with no cloud dependency.
+- PII redaction has no built-in APIM policy; a `send-request` policy (such
+  as apim-simulator's `core-pii` fragment) calls Azure AI Language. This
+  simulator serves `POST /language/:analyze-text?api-version=2026-05-01`
+  at the service root, so point the policy's endpoint at
+  `http://aifoundry-simulator:8000` and send the key in
+  `Ocp-Apim-Subscription-Key` (see [docs/PII.md](../../docs/PII.md)).
 - `llm-semantic-cache-*` needs an embeddings backend — this simulator's
   `/openai/deployments/text-embedding-demo/embeddings` is deterministic and
   local, and in the meantime the cache built into this simulator gives the

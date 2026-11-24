@@ -87,6 +87,22 @@
           "url_template": "/text:shieldPrompt"
         }
       }
+    },
+    "language-api": {
+      "name": "Azure AI Language PII via AI Foundry simulator",
+      "path": "language",
+      "upstream_base_url": "http://host.docker.internal:8020",
+      "upstream_path_prefix": "/language",
+      "backend": "aifoundry-simulator",
+      "products": ["ai-workloads"],
+      "policies_xml": "<policies><inbound><set-header name=\"Ocp-Apim-Subscription-Key\" exists-action=\"override\"><value>local-foundry-key-alpha</value></set-header></inbound><backend /><outbound /><on-error /></policies>",
+      "operations": {
+        "analyze-text": {
+          "name": "Analyze Text (PII)",
+          "method": "POST",
+          "url_template": "/:analyze-text"
+        }
+      }
     }
   }
 }

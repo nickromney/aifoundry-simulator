@@ -20,7 +20,7 @@ and refresh affected evidence after a mutation.
 APIM owns gateway routing, subscriptions, policy execution, token budgets,
 and gateway traces. Foundry owns deployment routing, deterministic model
 outputs and usage, service-side semantic caching, content filtering, and
-the standalone Content Safety endpoints. Foundry management uses its own
+the standalone Content Safety and Language PII endpoints. Foundry management uses its own
 admin key; gateway subscriptions do not grant Foundry management access.
 
 Keep the public request contract separate from the teaching implementation.

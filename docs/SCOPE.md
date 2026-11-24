@@ -32,6 +32,11 @@ Labels follow the sibling APIM simulator's discipline, enforced by
   `MissingApiVersionParameter`
 - Content Safety service surface (2024-09-01 shapes): `text:analyze`,
   `text:shieldPrompt`, text blocklist CRUD and matching
+- Azure AI Language PII entity recognition: `POST /language/:analyze-text`
+  (`2026-05-01`, `2025-11-15-preview`) with `piiCategories`,
+  `characterMask`/`entityMask`/`noMask` redaction policies, the 5-document
+  and 5,120-character limits, and `Ocp-Apim-Subscription-Key` auth (see
+  [PII.md](PII.md))
 - Integrated RAI content filtering per deployment: prompt-side 400
   `content_filter` with `ResponsibleAIPolicyViolation` innererror,
   success-path `prompt_filter_results`/`content_filter_results`
@@ -69,6 +74,10 @@ observation, with no new HTTP surface or hosted-agent capability. See the
 - Content safety verdicts come from simulation triggers, configurable
   lexicons, and jailbreak pattern heuristics (see
   [CONTENT-SAFETY.md](CONTENT-SAFETY.md)); severity quality is not simulated
+- PII entities come from regex detectors (Email, PhoneNumber, Luhn-checked
+  CreditCardNumber, USSocialSecurityNumber, UKNationalInsuranceNumber,
+  IPv4 IPAddress) and `[simulate:pii=Person:<name>]` triggers; offsets count
+  code points rather than Azure's default text elements (see [PII.md](PII.md))
 - `EightSeverityLevels` output returns the same 0–7 value the trigger or
   lexicon produced; lexicon bands only emit 2/4/6
 
@@ -76,6 +85,8 @@ observation, with no new HTTP surface or hosted-agent capability. See the
 
 - Image, multimodal, and audio surfaces (`image:analyze`, vision inputs)
 - Protected material detection, groundedness detection, custom categories
+- Other Language `analyze-text` kinds, async `analyze-text/jobs`, PII
+  `syntheticReplacement`, conversation and document PII
 - Tool/function calling, multimodal Responses input, background jobs,
   conversations, MCP, and agent hosting
 - Embeddings formats beyond `float` and `base64`, token-array input, and

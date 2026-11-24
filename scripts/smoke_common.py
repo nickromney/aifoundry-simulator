@@ -21,6 +21,7 @@ CHAT_PATH = "/openai/deployments/gpt-demo/chat/completions?api-version=2024-10-2
 EMBEDDINGS_PATH = "/openai/deployments/text-embedding-demo/embeddings?api-version=2024-10-21"
 ANALYZE_PATH = "/contentsafety/text:analyze?api-version=2024-09-01"
 SHIELD_PATH = "/contentsafety/text:shieldPrompt?api-version=2024-09-01"
+PII_PATH = "/language/:analyze-text?api-version=2026-05-01"
 
 
 def retry_call[T](

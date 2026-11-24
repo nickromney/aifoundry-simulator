@@ -28,6 +28,7 @@ def test_root_hint_lists_entrypoints(client):
     entrypoints = payload["entrypoints"]
     assert "azure_openai_chat" in entrypoints
     assert "content_safety_analyze" in entrypoints
+    assert entrypoints["language_pii"] == "/language/:analyze-text?api-version=2026-05-01"
 
 
 @pytest.mark.contract("MGMT-AUTH")

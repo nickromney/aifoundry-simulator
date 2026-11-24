@@ -1,11 +1,15 @@
-"""Content safety smoke: standalone service surface plus integrated filtering."""
+"""Content safety smoke: standalone service surface, integrated filtering and Language PII."""
 
 from __future__ import annotations
+
+import json
 
 from smoke_common import (
     ADMIN_HEADERS,
     ANALYZE_PATH,
     API_HEADERS,
+    API_KEY,
+    PII_PATH,
     SHIELD_PATH,
     chat,
     check_health,
@@ -133,18 +137,45 @@ def smoke_integrated_filter() -> None:
     require(stats["outputs_filtered"] >= 1, f"expected filtered outputs in stats, got {stats}")
 
 
+def smoke_pii() -> None:
+    text = json.dumps(
+        {"messages": [{"role": "user", "content": "Mail jane@contoso.com [simulate:pii=Person:Jane Doe]"}]}
+    )
+    body = {
+        "kind": "PiiEntityRecognition",
+        "parameters": {"modelVersion": "latest"},
+        "analysisInput": {"documents": [{"id": "1", "language": "en", "text": text}]},
+    }
+    with client() as http:
+        result = http.post(PII_PATH, headers={"Ocp-Apim-Subscription-Key": API_KEY}, json=body)
+        require(result.status_code == 200, f"expected 200 PII analyze, got {result.status_code}: {result.text}")
+        document = result.json()["results"]["documents"][0]
+        categories = sorted(entity["category"] for entity in document["entities"])
+        require(categories == ["Email", "Person"], f"unexpected PII entities: {document}")
+        for entity in document["entities"]:
+            span = text[entity["offset"] : entity["offset"] + entity["length"]]
+            require(span == entity["text"], f"offset mismatch for {entity}")
+        redacted = document["redactedText"]
+        require(len(redacted) == len(text) and "jane@contoso.com" not in redacted, f"bad redaction: {redacted}")
+        json.loads(redacted)
+        denied = http.post(PII_PATH, headers={"Ocp-Apim-Subscription-Key": "invalid"}, json=body)
+        require(denied.status_code == 401, f"expected 401 for bad Language key, got {denied.status_code}")
+
+
 def main() -> int:
     retry_call(check_health)
     smoke_analyze()
     smoke_blocklists()
     smoke_shield()
     smoke_integrated_filter()
+    smoke_pii()
 
     print("content safety smoke passed")
     print("- text:analyze: safe text, lexicon severity, simulation trigger")
     print("- blocklists: config match, haltOnBlocklistHit, runtime CRUD")
     print("- text:shieldPrompt: prompt and document attack detection")
     print("- integrated filter: 400 content_filter, jailbreak, annotations, output filtering")
+    print("- language :analyze-text: PII offsets, same-length redaction, Ocp-Apim-Subscription-Key auth")
     return 0
 
 

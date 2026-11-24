@@ -3,6 +3,8 @@
 Inference and content safety surfaces accept the Azure conventions:
 an ``api-key`` header (Azure OpenAI / Content Safety) or an
 ``Authorization: Bearer <key>`` header (Foundry v1 / Entra-style clients).
+The Azure AI Language surface additionally accepts Language's own
+``Ocp-Apim-Subscription-Key`` header, checked against the same keys.
 Management endpoints under /foundry/management require an admin key via
 ``X-Foundry-Admin-Key`` when admin keys are configured.
 """
@@ -14,7 +16,11 @@ from fastapi import Request
 from app.config import FoundryConfig
 
 
-def extract_api_key(request: Request) -> str | None:
+def extract_api_key(request: Request, *, subscription_key_header: bool = False) -> str | None:
+    if subscription_key_header:
+        subscription_key = request.headers.get("ocp-apim-subscription-key")
+        if subscription_key:
+            return subscription_key
     api_key = request.headers.get("api-key")
     if api_key:
         return api_key
@@ -24,10 +30,10 @@ def extract_api_key(request: Request) -> str | None:
     return None
 
 
-def is_authorized(request: Request, config: FoundryConfig) -> bool:
+def is_authorized(request: Request, config: FoundryConfig, *, subscription_key_header: bool = False) -> bool:
     if config.auth.allow_anonymous:
         return True
-    key = extract_api_key(request)
+    key = extract_api_key(request, subscription_key_header=subscription_key_header)
     # Tenant/admin keys are management-plane credentials.  Accepting one on a
     # data-plane route would make a local config teach the wrong Azure
     # separation and would hide accidental credential mix-ups in tests.
