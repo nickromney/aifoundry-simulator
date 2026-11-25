@@ -66,6 +66,10 @@ token endpoint here.
   `system-assigned` identity granted `Cognitive Services User` so inference,
   Content Safety and Language all work keyless. `disable_local_auth` stays
   `false`, so key-based smoke tests still pass.
+- To pair it with the gateway, run `make up-ai-foundry-keyless` and then
+  `make smoke-ai-foundry-keyless` in an apim-simulator checkout. Its "Go
+  keyless" section in `examples/ai-gateway/README.md` walks through the
+  steps, including removing the role to get `PermissionDenied`.
 - Each trusted issuer sets exactly one of `jwks_uri` (fetched over HTTP,
   cached for `jwks_cache_ttl_seconds`, default 300) or `public_key_file`
   (a PEM RSA public key, for tests and standalone runs). An unknown `kid`
