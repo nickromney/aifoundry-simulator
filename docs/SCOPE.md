@@ -97,8 +97,9 @@ observation, with no new HTTP surface or hosted-agent capability. See the
   only, matching the APIM policy's target)
 - External cache/vector stores (Redis/RediSearch) and cross-instance state —
   everything is in-memory and resets on restart
-- Entra ID token *validation* (any Bearer value is checked against the
-  configured key list, not decoded as a JWT); managed identity flows
+- Entra ID token *issuance*: no IMDS or Entra token endpoint. Token
+  validation and role checks are opt-in via `auth.entra` (issuer + JWKS,
+  flat role map, no RBAC scope inheritance)
 - Deployment CRUD via the management surface — the config file is the
   single source of truth; restart to change deployments
 - Gateway concerns (token rate limits, quotas, products, subscriptions) —

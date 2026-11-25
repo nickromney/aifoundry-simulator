@@ -60,6 +60,13 @@ def unauthorized() -> JSONResponse:
     )
 
 
+def auth_failure(failure: Any) -> JSONResponse:
+    """Azure OpenAI 401 for a rejected credential, keeping key/token/role distinct."""
+    if failure.kind == "key":
+        return unauthorized()
+    return azure_resource_error(401, failure.code, failure.message)
+
+
 def content_filter_error(content_filter_result: dict[str, Any], *, model_inference: bool = False) -> JSONResponse:
     """The documented Azure OpenAI 400 returned when the prompt trips the content filter."""
     if model_inference:

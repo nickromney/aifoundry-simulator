@@ -19,7 +19,7 @@ from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 
 from app import errors, pipeline
-from app.auth import is_authorized
+from app.auth import authorize
 from app.config import Deployment
 from app.state import AppState
 
@@ -33,10 +33,10 @@ def _state(request: Request) -> AppState:
     return request.app.state.foundry
 
 
-def _auth_or_error(request: Request) -> JSONResponse | None:
-    if not is_authorized(request, _state(request).config):
-        return errors.unauthorized()
-    return None
+async def _auth_or_error(request: Request) -> JSONResponse | None:
+    state = _state(request)
+    failure = await authorize(request, state.config, state.jwks, "inference")
+    return None if failure is None else errors.auth_failure(failure)
 
 
 def _api_version_or_error(request: Request) -> JSONResponse | None:
@@ -126,7 +126,7 @@ def _model_not_found(model: str) -> JSONResponse:
 
 @azure_router.post("/openai/deployments/{deployment_name}/chat/completions", response_model=None)
 async def azure_chat_completions(deployment_name: str, request: Request) -> Response:
-    for gate in (_auth_or_error(request), _api_version_or_error(request)):
+    for gate in (await _auth_or_error(request), _api_version_or_error(request)):
         if gate is not None:
             return gate
     deployment = _resolve(request, deployment_name, "chat")
@@ -137,7 +137,7 @@ async def azure_chat_completions(deployment_name: str, request: Request) -> Resp
 
 @azure_router.post("/openai/deployments/{deployment_name}/embeddings", response_model=None)
 async def azure_embeddings(deployment_name: str, request: Request) -> Response:
-    for gate in (_auth_or_error(request), _api_version_or_error(request)):
+    for gate in (await _auth_or_error(request), _api_version_or_error(request)):
         if gate is not None:
             return gate
     deployment = _resolve(request, deployment_name, "embeddings")
@@ -157,7 +157,9 @@ async def _v1_dispatch(
     model_inference: bool = False,
 ) -> Response:
     gates = (
-        (_auth_or_error(request),) if model_inference else (_auth_or_error(request), _v1_api_version_or_error(request))
+        (await _auth_or_error(request),)
+        if model_inference
+        else (await _auth_or_error(request), _v1_api_version_or_error(request))
     )
     for gate in gates:
         if gate is not None:
@@ -217,7 +219,7 @@ def _stored_response(request: Request, response_id: str) -> tuple[AppState, Any]
 
 @v1_router.get("/responses/{response_id}/input_items", response_model=None)
 async def v1_response_input_items(response_id: str, request: Request) -> Response:
-    for gate in (_auth_or_error(request), _v1_api_version_or_error(request)):
+    for gate in (await _auth_or_error(request), _v1_api_version_or_error(request)):
         if gate is not None:
             return gate
     result = _stored_response(request, response_id)
@@ -238,7 +240,7 @@ async def v1_response_input_items(response_id: str, request: Request) -> Respons
 
 @v1_router.post("/responses/{response_id}/cancel", response_model=None)
 async def v1_cancel_response(response_id: str, request: Request) -> Response:
-    for gate in (_auth_or_error(request), _v1_api_version_or_error(request)):
+    for gate in (await _auth_or_error(request), _v1_api_version_or_error(request)):
         if gate is not None:
             return gate
     result = _stored_response(request, response_id)
@@ -254,7 +256,7 @@ async def v1_cancel_response(response_id: str, request: Request) -> Response:
 
 @v1_router.delete("/responses/{response_id}", response_model=None)
 async def v1_delete_response(response_id: str, request: Request) -> Response:
-    for gate in (_auth_or_error(request), _v1_api_version_or_error(request)):
+    for gate in (await _auth_or_error(request), _v1_api_version_or_error(request)):
         if gate is not None:
             return gate
     state = _state(request)
@@ -265,7 +267,7 @@ async def v1_delete_response(response_id: str, request: Request) -> Response:
 
 @v1_router.get("/responses/{response_id}", response_model=None)
 async def v1_get_response(response_id: str, request: Request) -> Response:
-    for gate in (_auth_or_error(request), _v1_api_version_or_error(request)):
+    for gate in (await _auth_or_error(request), _v1_api_version_or_error(request)):
         if gate is not None:
             return gate
     result = _stored_response(request, response_id)
@@ -286,7 +288,7 @@ def _model_payload(state: AppState, deployment: Deployment) -> dict[str, Any]:
 
 @v1_router.get("/models", response_model=None)
 async def v1_list_models(request: Request) -> Response:
-    for gate in (_auth_or_error(request), _v1_api_version_or_error(request)):
+    for gate in (await _auth_or_error(request), _v1_api_version_or_error(request)):
         if gate is not None:
             return gate
     state = _state(request)
@@ -296,7 +298,7 @@ async def v1_list_models(request: Request) -> Response:
 
 @v1_router.get("/models/{model_id}", response_model=None)
 async def v1_get_model(model_id: str, request: Request) -> Response:
-    for gate in (_auth_or_error(request), _v1_api_version_or_error(request)):
+    for gate in (await _auth_or_error(request), _v1_api_version_or_error(request)):
         if gate is not None:
             return gate
     state = _state(request)

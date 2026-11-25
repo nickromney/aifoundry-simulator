@@ -15,12 +15,13 @@ BENCHMARK_SCENARIO ?= embeddings
 BENCHMARK_REQUESTS ?= 1000
 BENCHMARK_ENTRIES ?= 128
 
-.PHONY: help prereqs hooks build up down restart logs smoke smoke-foundry smoke-cache smoke-safety test fmt lint lint-check lint-yaml compose-config local-ci
+.PHONY: help prereqs hooks build up up-keyless down restart logs smoke smoke-foundry smoke-cache smoke-safety test fmt lint lint-check lint-yaml compose-config local-ci
 
 help:
 	@printf "Run:\n"
 	@printf "\nStack lifecycle:\n"
 	@printf $(HELP_FMT) "up" "Build and start the simulator on localhost:$(FOUNDRY_PORT)"
+	@printf $(HELP_FMT) "up-keyless" "Start with examples/foundry.keyless.json (trusts apim-simulator managed identity tokens)"
 	@printf $(HELP_FMT) "down" "Stop the simulator stack"
 	@printf $(HELP_FMT) "restart" "Recreate the simulator container"
 	@printf $(HELP_FMT) "logs" "Follow simulator logs"
@@ -69,6 +70,9 @@ up:
 	$(COMPOSE) up --build --detach --wait
 	@echo "aifoundry-simulator ready on $(FOUNDRY_BASE_URL)"
 	@echo "try: curl $(FOUNDRY_BASE_URL)/foundry/health"
+
+up-keyless:
+	@AIFOUNDRY_CONFIG_PATH=/app/examples/foundry.keyless.json $(MAKE) --no-print-directory up
 
 down:
 	$(COMPOSE) down --remove-orphans

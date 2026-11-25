@@ -16,7 +16,7 @@ from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 
 from app import errors
-from app.auth import is_authorized
+from app.auth import authorize
 from app.pii import (
     CATEGORIES,
     MODEL_VERSION,
@@ -45,8 +45,12 @@ def _invalid(message: str, inner_code: str = "InvalidParameterValue") -> JSONRes
     return errors.language_error(400, "InvalidRequest", message, inner_code=inner_code)
 
 
-def _gates(request: Request) -> JSONResponse | None:
-    if not is_authorized(request, _state(request).config, subscription_key_header=True):
+async def _gates(request: Request) -> JSONResponse | None:
+    state = _state(request)
+    failure = await authorize(request, state.config, state.jwks, "language", subscription_key_header=True)
+    if failure is not None and failure.kind != "key":
+        return errors.language_error(401, failure.code, failure.message)
+    if failure is not None:
         return errors.language_error(
             401,
             "401",
@@ -108,7 +112,7 @@ def _document_error(document_id: str, message: str) -> dict[str, Any]:
 
 @router.post("/:analyze-text", response_model=None)
 async def analyze_text(request: Request) -> Response:
-    gate = _gates(request)
+    gate = await _gates(request)
     if gate is not None:
         return gate
     try:

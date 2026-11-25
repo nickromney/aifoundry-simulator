@@ -107,10 +107,39 @@ class Deployment:
 
 
 @dataclass(frozen=True)
+class TrustedIssuer:
+    """One token issuer the data plane trusts, with exactly one key source."""
+
+    issuer: str
+    jwks_uri: str | None = None
+    public_key_file: str | None = None
+
+
+@dataclass(frozen=True)
+class EntraSettings:
+    """Keyless (Microsoft Entra ID / managed identity) data-plane auth.
+
+    ``role_assignments`` is a flat principal -> role names map scoped to this
+    resource: no RBAC scope inheritance, groups or deny assignments.
+    """
+
+    enabled: bool = False
+    trusted_issuers: tuple[TrustedIssuer, ...] = ()
+    audiences: tuple[str, ...] = ()
+    role_assignments: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    jwks_cache_ttl_seconds: int = 300
+    clock_skew_seconds: int = 60
+
+
+@dataclass(frozen=True)
 class AuthSettings:
     api_keys: tuple[str, ...] = ()
     admin_keys: tuple[str, ...] = ()
     allow_anonymous: bool = False
+    # Mirrors the Azure resource property ``disableLocalAuth``: key-based
+    # auth is rejected on the data plane and only Entra tokens are accepted.
+    disable_local_auth: bool = False
+    entra: EntraSettings = field(default_factory=EntraSettings)
 
 
 @dataclass(frozen=True)
@@ -298,25 +327,109 @@ def _parse_lexicons(raw: Any) -> dict[str, dict[int, tuple[str, ...]]]:
     return lexicons
 
 
+def _string_list(raw: Any, label: str, *, allow_empty: bool = True) -> tuple[str, ...]:
+    _require(
+        isinstance(raw, list) and all(isinstance(item, str) and item for item in raw),
+        f"{label} must be a list of non-empty strings",
+    )
+    _require(allow_empty or len(raw) > 0, f"{label} must contain at least one entry")
+    return tuple(raw)
+
+
+def _parse_trusted_issuer(raw: Any, index: int) -> TrustedIssuer:
+    label = f"auth.entra.trusted_issuers[{index}]"
+    _require(isinstance(raw, dict), f"{label} must be an object")
+    unknown = set(raw) - {"issuer", "jwks_uri", "public_key_file"}
+    _require(not unknown, f"{label}: unknown field(s) {sorted(unknown)}")
+    issuer = raw.get("issuer")
+    _require(isinstance(issuer, str) and issuer != "", f"{label}.issuer must be a non-empty string")
+    jwks_uri = raw.get("jwks_uri")
+    public_key_file = raw.get("public_key_file")
+    _require(
+        (jwks_uri is None) != (public_key_file is None),
+        f"{label} ('{issuer}') must set exactly one of jwks_uri or public_key_file",
+    )
+    if jwks_uri is not None:
+        _require(
+            isinstance(jwks_uri, str) and jwks_uri.startswith(("http://", "https://")),
+            f"{label}.jwks_uri must be an http(s) URL",
+        )
+    if public_key_file is not None:
+        _require(
+            isinstance(public_key_file, str) and public_key_file != "",
+            f"{label}.public_key_file must be a non-empty string",
+        )
+        _require(Path(public_key_file).is_file(), f"{label}.public_key_file '{public_key_file}' does not exist")
+    return TrustedIssuer(issuer=issuer, jwks_uri=jwks_uri, public_key_file=public_key_file)
+
+
+def _parse_entra(raw: Any) -> EntraSettings:
+    _require(isinstance(raw, dict), "auth.entra must be an object")
+    enabled = raw.get("enabled", False)
+    _require(isinstance(enabled, bool), "auth.entra.enabled must be a boolean")
+    issuers_raw = raw.get("trusted_issuers", [])
+    _require(isinstance(issuers_raw, list), "auth.entra.trusted_issuers must be a list")
+    issuers = tuple(_parse_trusted_issuer(item, index) for index, item in enumerate(issuers_raw))
+    names = [issuer.issuer for issuer in issuers]
+    _require(len(names) == len(set(names)), "auth.entra.trusted_issuers: duplicate issuer")
+    audiences = _string_list(raw.get("audiences", []), "auth.entra.audiences")
+    assignments_raw = raw.get("role_assignments", {})
+    _require(isinstance(assignments_raw, dict), "auth.entra.role_assignments must be an object")
+    assignments: dict[str, tuple[str, ...]] = {}
+    for principal, roles in assignments_raw.items():
+        _require(principal != "", "auth.entra.role_assignments keys must be non-empty principal ids")
+        assignments[principal] = _string_list(roles, f"auth.entra.role_assignments.{principal}")
+    ttl = raw.get("jwks_cache_ttl_seconds", 300)
+    _require(
+        isinstance(ttl, int) and not isinstance(ttl, bool) and ttl >= 0,
+        "auth.entra.jwks_cache_ttl_seconds must be a non-negative integer",
+    )
+    skew = raw.get("clock_skew_seconds", 60)
+    _require(
+        isinstance(skew, int) and not isinstance(skew, bool) and 0 <= skew <= 300,
+        "auth.entra.clock_skew_seconds must be an integer between 0 and 300",
+    )
+    if enabled:
+        _require(len(issuers) > 0, "auth.entra.trusted_issuers must contain at least one issuer when enabled")
+        _require(len(audiences) > 0, "auth.entra.audiences must contain at least one audience when enabled")
+    return EntraSettings(
+        enabled=enabled,
+        trusted_issuers=issuers,
+        audiences=audiences,
+        role_assignments=assignments,
+        jwks_cache_ttl_seconds=ttl,
+        clock_skew_seconds=skew,
+    )
+
+
 def _parse_auth(raw: Any) -> AuthSettings:
     _require(isinstance(raw, dict), "auth must be an object")
-    api_keys = raw.get("api_keys", [])
-    _require(
-        isinstance(api_keys, list) and all(isinstance(key, str) and key for key in api_keys),
-        "auth.api_keys must be a list of non-empty strings",
-    )
-    admin_keys = raw.get("admin_keys", [])
-    _require(
-        isinstance(admin_keys, list) and all(isinstance(key, str) and key for key in admin_keys),
-        "auth.admin_keys must be a list of non-empty strings",
-    )
+    api_keys = _string_list(raw.get("api_keys", []), "auth.api_keys")
+    admin_keys = _string_list(raw.get("admin_keys", []), "auth.admin_keys")
     allow_anonymous = raw.get("allow_anonymous", False)
     _require(isinstance(allow_anonymous, bool), "auth.allow_anonymous must be a boolean")
+    disable_local_auth = raw.get("disable_local_auth", False)
+    _require(isinstance(disable_local_auth, bool), "auth.disable_local_auth must be a boolean")
+    entra = _parse_entra(raw.get("entra", {}))
     _require(
-        allow_anonymous or len(api_keys) > 0,
-        "auth.api_keys must contain at least one key unless allow_anonymous is true",
+        not (allow_anonymous and disable_local_auth),
+        "auth.allow_anonymous and auth.disable_local_auth cannot both be true",
     )
-    return AuthSettings(api_keys=tuple(api_keys), admin_keys=tuple(admin_keys), allow_anonymous=allow_anonymous)
+    _require(
+        not disable_local_auth or entra.enabled,
+        "auth.disable_local_auth requires auth.entra.enabled, otherwise no credential can reach the data plane",
+    )
+    _require(
+        allow_anonymous or entra.enabled or len(api_keys) > 0,
+        "auth.api_keys must contain at least one key unless allow_anonymous or auth.entra.enabled is true",
+    )
+    return AuthSettings(
+        api_keys=api_keys,
+        admin_keys=admin_keys,
+        allow_anonymous=allow_anonymous,
+        disable_local_auth=disable_local_auth,
+        entra=entra,
+    )
 
 
 def load_config(path: str | Path | None = None) -> FoundryConfig:
