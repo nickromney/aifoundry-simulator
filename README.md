@@ -181,6 +181,18 @@ services:
       AIFOUNDRY_CONFIG_PATH: /app/examples/custom.json
 ```
 
+### Auth
+
+Data-plane requests authenticate with a key from `auth.api_keys`
+(`api-key`, `Authorization: Bearer <key>`, or `Ocp-Apim-Subscription-Key`
+on Language). For keyless managed identity auth, enable `auth.entra`: a
+bearer JWT from a trusted issuer is validated (RS256, issuer, audience,
+expiry) and authorized against `auth.entra.role_assignments`, which maps a
+principal to built-in role names such as `Cognitive Services OpenAI User`.
+`auth.disable_local_auth: true` mirrors Azure's `disableLocalAuth` and
+rejects every key. Both are off by default. Details, the role table and
+error shapes: [docs/FOUNDRY-TERM-MAP.md](docs/FOUNDRY-TERM-MAP.md#keyless-auth-managed-identity).
+
 `FOUNDRY_LATENCY_MS` overrides every deployment's simulated latency (useful
 for making cache hits obvious in demos). An invalid config fails container
 start with a line-item error rather than failing the first request.

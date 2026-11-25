@@ -110,6 +110,31 @@ contracts:
       - tests/test_chat.py::test_anonymous_mode
     assertion_kind: http-json
 
+  - id: AOAI-ENTRA-AUTH
+    status: adapted
+    surface: inference
+    module: app/auth.py
+    doc_refs: [docs/FOUNDRY-TERM-MAP.md, docs/SCOPE.md]
+    owner_tests:
+      - tests/test_entra_auth.py::test_valid_token_with_role_is_accepted
+      - tests/test_entra_auth.py::test_valid_token_without_role_is_permission_denied
+      - tests/test_entra_auth.py::test_roles_are_scoped_per_surface
+      - tests/test_entra_auth.py::test_invalid_tokens_are_rejected
+      - tests/test_entra_auth.py::test_alg_none_is_rejected
+      - tests/test_entra_auth.py::test_hs256_signed_with_public_key_is_rejected
+      - tests/test_entra_auth.py::test_unknown_kid_refetches_once_then_fails_closed
+      - tests/test_entra_auth.py::test_public_key_file_issuer_needs_no_network
+    assertion_kind: http-json
+
+  - id: AOAI-DISABLE-LOCAL-AUTH
+    status: supported
+    surface: inference
+    module: app/auth.py
+    doc_refs: [docs/FOUNDRY-TERM-MAP.md]
+    owner_tests:
+      - tests/test_entra_auth.py::test_disable_local_auth_blocks_keys_but_allows_tokens
+    assertion_kind: http-json
+
   - id: AOAI-API-VERSION-REQUIRED
     status: supported
     surface: inference

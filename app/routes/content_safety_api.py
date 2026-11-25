@@ -16,7 +16,7 @@ from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 
 from app import errors
-from app.auth import is_authorized
+from app.auth import authorize
 from app.config import Blocklist, BlocklistItem
 from app.content_safety import (
     AZURE_CATEGORY_NAMES,
@@ -36,8 +36,12 @@ def _state(request: Request) -> AppState:
     return request.app.state.foundry
 
 
-def _gates(request: Request) -> JSONResponse | None:
-    if not is_authorized(request, _state(request).config):
+async def _gates(request: Request) -> JSONResponse | None:
+    state = _state(request)
+    failure = await authorize(request, state.config, state.jwks, "content_safety")
+    if failure is not None and failure.kind != "key":
+        return errors.content_safety_error(401, failure.code, failure.message)
+    if failure is not None:
         return errors.content_safety_error(
             401,
             "Unauthorized",
@@ -64,7 +68,7 @@ async def _json_body(request: Request) -> dict[str, Any] | JSONResponse:
 
 @router.post("/text:analyze", response_model=None)
 async def analyze(request: Request) -> Response:
-    gate = _gates(request)
+    gate = await _gates(request)
     if gate is not None:
         return gate
     body = await _json_body(request)
@@ -134,7 +138,7 @@ async def analyze(request: Request) -> Response:
 
 @router.post("/text:shieldPrompt", response_model=None)
 async def shield_prompt(request: Request) -> Response:
-    gate = _gates(request)
+    gate = await _gates(request)
     if gate is not None:
         return gate
     body = await _json_body(request)
@@ -178,7 +182,7 @@ def _item_payload(item: BlocklistItem) -> dict[str, Any]:
 
 @router.post("/text/blocklists/{name}:addOrUpdateBlocklistItems", response_model=None)
 async def add_or_update_blocklist_items(name: str, request: Request) -> Response:
-    gate = _gates(request)
+    gate = await _gates(request)
     if gate is not None:
         return gate
     state = _state(request)
@@ -250,7 +254,7 @@ async def add_or_update_blocklist_items(name: str, request: Request) -> Response
 
 @router.post("/text/blocklists/{name}:removeBlocklistItems", response_model=None)
 async def remove_blocklist_items(name: str, request: Request) -> Response:
-    gate = _gates(request)
+    gate = await _gates(request)
     if gate is not None:
         return gate
     state = _state(request)
@@ -269,7 +273,7 @@ async def remove_blocklist_items(name: str, request: Request) -> Response:
 
 @router.get("/text/blocklists/{name}/blocklistItems", response_model=None)
 async def list_blocklist_items(name: str, request: Request) -> Response:
-    gate = _gates(request)
+    gate = await _gates(request)
     if gate is not None:
         return gate
     blocklist = _state(request).blocklists.get(name)
@@ -280,7 +284,7 @@ async def list_blocklist_items(name: str, request: Request) -> Response:
 
 @router.get("/text/blocklists", response_model=None)
 async def list_blocklists(request: Request) -> Response:
-    gate = _gates(request)
+    gate = await _gates(request)
     if gate is not None:
         return gate
     blocklists = _state(request).blocklists
@@ -289,7 +293,7 @@ async def list_blocklists(request: Request) -> Response:
 
 @router.get("/text/blocklists/{name}", response_model=None)
 async def get_blocklist(name: str, request: Request) -> Response:
-    gate = _gates(request)
+    gate = await _gates(request)
     if gate is not None:
         return gate
     blocklist = _state(request).blocklists.get(name)
@@ -300,7 +304,7 @@ async def get_blocklist(name: str, request: Request) -> Response:
 
 @router.patch("/text/blocklists/{name}", response_model=None)
 async def create_or_update_blocklist(name: str, request: Request) -> Response:
-    gate = _gates(request)
+    gate = await _gates(request)
     if gate is not None:
         return gate
     state = _state(request)
@@ -320,7 +324,7 @@ async def create_or_update_blocklist(name: str, request: Request) -> Response:
 
 @router.delete("/text/blocklists/{name}", response_model=None)
 async def delete_blocklist(name: str, request: Request) -> Response:
-    gate = _gates(request)
+    gate = await _gates(request)
     if gate is not None:
         return gate
     state = _state(request)

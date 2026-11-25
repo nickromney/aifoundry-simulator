@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 
+from app.auth import JwksCache
 from app.config import Blocklist, FoundryConfig
 from app.content_safety import SafetyStats
 from app.response_store import ResponseStore
@@ -17,6 +18,7 @@ class AppState:
     semantic_cache: SemanticCache = field(default_factory=SemanticCache)
     safety_stats: SafetyStats = field(default_factory=SafetyStats)
     responses: ResponseStore = field(default_factory=ResponseStore)
+    jwks: JwksCache = field(default_factory=JwksCache)
     started_at: float = field(default_factory=time.time)
 
     def __post_init__(self) -> None:
