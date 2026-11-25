@@ -210,6 +210,13 @@ owns a forwarding lab: once the sibling gateway image is built, run
 `make pairing-up && make pairing-smoke` (gateway on localhost:8030). Run
 `make pairing-down` before `make down`.
 
+For keyless pairing, start this side with `make up-keyless`. It loads
+[examples/foundry.keyless.json](examples/foundry.keyless.json), which trusts
+managed identity tokens from the gateway's issuer
+`http://apim-simulator:8000/.well-known/workload-identity` and grants the
+`system-assigned` identity `Cognitive Services User`. Keys still work, because
+`disable_local_auth` stays `false`.
+
 ## Container Hardening
 
 Same posture as the sibling repo: non-root user, read-only root filesystem,

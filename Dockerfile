@@ -31,6 +31,7 @@ WORKDIR /app
 COPY --chown=${APP_UID}:${APP_GID} --from=builder /app/.venv /app/.venv
 COPY --chown=${APP_UID}:${APP_GID} app ./app
 COPY --chown=${APP_UID}:${APP_GID} examples/foundry.json ./examples/foundry.json
+COPY --chown=${APP_UID}:${APP_GID} examples/foundry.keyless.json ./examples/foundry.keyless.json
 
 EXPOSE 8000
 

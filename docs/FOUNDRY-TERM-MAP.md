@@ -59,6 +59,13 @@ token endpoint here.
 ```
 
 - `entra` is off by default; existing configs behave as before.
+- `make up-keyless` starts the stack with
+  [examples/foundry.keyless.json](../examples/foundry.keyless.json)
+  (`AIFOUNDRY_CONFIG_PATH=/app/examples/foundry.keyless.json`). It is
+  `examples/foundry.json` plus the `entra` block above, with the
+  `system-assigned` identity granted `Cognitive Services User` so inference,
+  Content Safety and Language all work keyless. `disable_local_auth` stays
+  `false`, so key-based smoke tests still pass.
 - Each trusted issuer sets exactly one of `jwks_uri` (fetched over HTTP,
   cached for `jwks_cache_ttl_seconds`, default 300) or `public_key_file`
   (a PEM RSA public key, for tests and standalone runs). An unknown `kid`

@@ -11,6 +11,7 @@ import hmac
 import json
 import re
 import time
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -367,3 +368,23 @@ def test_entra_defaults_off_and_keys_optional_when_enabled(tmp_path):
     loaded = load_config(_write(tmp_path, config)).auth
     assert loaded.disable_local_auth is True
     assert loaded.entra.role_assignments == {"system-assigned": ("Cognitive Services OpenAI User",)}
+
+
+def test_keyless_example_config_trusts_apim_issuer():
+    """examples/foundry.keyless.json is what the apim-simulator pairing loads; catch drift."""
+    repo_root = Path(__file__).resolve().parents[1]
+    keyless = load_config(repo_root / "examples" / "foundry.keyless.json")
+    baseline = load_config(repo_root / "examples" / "foundry.json")
+    entra = keyless.auth.entra
+    assert entra.enabled is True
+    assert keyless.auth.disable_local_auth is False
+    assert [(issuer.issuer, issuer.jwks_uri, issuer.public_key_file) for issuer in entra.trusted_issuers] == [
+        (ISSUER, JWKS_URI, None)
+    ]
+    assert entra.audiences == (AUDIENCE, "https://ai.azure.com")
+    assert entra.role_assignments == {"system-assigned": ("Cognitive Services User",)}
+    assert keyless.auth.api_keys == baseline.auth.api_keys
+    assert keyless.auth.admin_keys == baseline.auth.admin_keys
+    assert keyless.deployments == baseline.deployments
+    assert keyless.content_filters == baseline.content_filters
+    assert keyless.blocklists == baseline.blocklists
