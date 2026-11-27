@@ -102,9 +102,10 @@ tokens so inputs, focus indicators, and errors remain readable in both themes.
 A suitable Foundry workflow is deployment navigation plus settings inspection
 and request testing; separate panels can expose cache statistics/flush,
 safety diagnostics, and existing blocklist operations. Deployment settings
-are currently read-only. Present latency as simulated, embeddings as lexical,
+are writable through the management API (ADR 0002), but a console should
+label those edits as lost on restart. Present latency as simulated, embeddings as lexical,
 and safety verdicts as simulation. Do not show agent hosting, Azure account
-administration, or deployment editing as usable features.
+administration, or durable deployment editing as usable features.
 
 Carry these verified APIM interaction lessons forward:
 

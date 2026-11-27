@@ -600,6 +600,54 @@ contracts:
     owner_tests: [tests/test_management.py::test_deployments_listing]
     assertion_kind: http-json
 
+  - id: MGMT-RESOURCE-ROUND-TRIP
+    status: supported
+    surface: management
+    module: app/management_resources.py
+    doc_refs: [docs/SCOPE.md, docs/adr/0002-runtime-writable-management-resources.md]
+    owner_tests:
+      - tests/test_management_resources.py::test_resource_round_trip
+      - tests/test_management_resources.py::test_resource_writes_need_admin_key
+      - tests/test_management_resources.py::test_invalid_json_is_rejected
+      - tests/test_management_resources.py::test_writes_are_per_app_instance
+    assertion_kind: http-json
+
+  - id: MGMT-DEPLOYMENT-WRITE
+    status: supported
+    surface: management
+    module: app/management_resources.py
+    doc_refs: [docs/SCOPE.md, docs/adr/0002-runtime-writable-management-resources.md]
+    owner_tests:
+      - tests/test_management_resources.py::test_put_deployment_omitted_fields_take_config_defaults
+      - tests/test_management_resources.py::test_partial_semantic_cache_fills_from_root_defaults
+      - tests/test_management_resources.py::test_new_deployment_serves_inference_and_deleted_one_does_not
+      - tests/test_management_resources.py::test_deployment_write_validates_references
+      - tests/test_management_resources.py::test_embeddings_deployment_used_by_a_cache_cannot_go
+      - tests/test_management_resources.py::test_deployment_write_flushes_semantic_cache
+    assertion_kind: http-json
+
+  - id: MGMT-CONTENT-FILTER-WRITE
+    status: supported
+    surface: management
+    module: app/management_resources.py
+    doc_refs: [docs/SCOPE.md, docs/adr/0002-runtime-writable-management-resources.md]
+    owner_tests:
+      - tests/test_management_resources.py::test_content_filter_write_changes_filtering
+      - tests/test_management_resources.py::test_content_filter_write_validates_references
+      - tests/test_management_resources.py::test_omitted_categories_read_back_as_medium
+    assertion_kind: http-json
+
+  - id: MGMT-BLOCKLIST-WRITE
+    status: supported
+    surface: management
+    module: app/management_resources.py
+    doc_refs: [docs/SCOPE.md, docs/adr/0002-runtime-writable-management-resources.md]
+    owner_tests:
+      - tests/test_management_resources.py::test_blocklist_item_blocks_prompts_on_a_filter_that_uses_it
+      - tests/test_management_resources.py::test_blocklist_put_keeps_items_and_config_items_are_addressable
+      - tests/test_management_resources.py::test_blocklist_item_guards
+    assertion_kind: http-json
+
   - id: CLI-CLIENT
     status: supported
     surface: cli

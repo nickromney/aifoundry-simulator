@@ -62,15 +62,17 @@ observations; consumers must inspect `complete` and individual statuses.
 | Desired change | Control | Lifetime / verification |
 | --- | --- | --- |
 | Send a request | Inference or Content Safety HTTP; thin CLI | May populate caches, counters or Responses; inspect wire evidence |
-| Change blocklist behavior now | Content Safety CRUD | Current app only; read back and test affected filter |
+| Change blocklist behavior now | Content Safety CRUD or management PUT | Current app only; read back and test affected filter |
+| Change a deployment or content filter now | Management PUT/DELETE, or the Terraform provider | Current app only; lost on recreation; a deployment write flushes the semantic cache; read back and test |
 | Remove cached answers | `foundrysim cache-flush` | Entries cleared; counters/history retained and flush event appended; verify stats and next miss |
-| Change deployment/filter/cache configuration | Edit source JSON; recreate app | All process-local state is lost; inspect loaded settings and test behavior |
+| Change deployment/filter/cache configuration durably | Edit source JSON; recreate app | All process-local state is lost; inspect loaded settings and test behavior |
 | Change Python behavior | Edit code; focused tests; rebuild/recreate container | Running image changes only after rebuild; verify actual host port |
 | Change gateway routing/budgets | APIM controls/configuration | Independent gateway lifecycle; verify direct and forwarded request |
 
 Configuration is desired state; runtime CRUD is ephemeral state. Save intended
-blocklist changes into source configuration explicitly when they must survive
-recreation. Read [SIMULATOR-DESIGN](SIMULATOR-DESIGN.md) for full state ownership,
+runtime changes into source configuration explicitly when they must survive
+recreation, or keep them in a Terraform configuration and re-apply after a
+restart. Read [SIMULATOR-DESIGN](SIMULATOR-DESIGN.md) for full state ownership,
 network topology, restart choices, and future console requirements.
 
 ## Diagnosis and selective reading

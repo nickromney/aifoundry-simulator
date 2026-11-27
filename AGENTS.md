@@ -16,6 +16,8 @@ Use this file for durable, concise guidance for coding agents in this repository
 - Before optimizing, read `docs/FOUNDRY-PERFORMANCE.md`; profile, preserve golden behavior and measure one lever at a time. Separate simulated latency, cache hits, and actual compute cost.
 - Keep request-option cache isolation inside deployment capacity/TTL limits; validate JSON types before set membership and apply the earliest stop/token boundary.
 
+- Writable management resources (ADR 0002) take config-file-shaped bodies and must pass `validate_references` before they change state. Their round-trip contract lives in `tests/test_management_resources.py`; the Terraform provider in `terraform-provider-foundrysim/` depends on it. Run `make provider-check` and `make provider-testacc` (needs Go and `terraform`) after changing either.
+
 - To prove behaviour against a running container, use `skills/verify-aifoundry-simulator/SKILL.md`. It runs an isolated compose project on loopback port 8120 and records requests and smoke transcripts. `make verify` runs the full cycle (launch, cache miss/hit, cache-stats, smoke, cleanup) and ends with `VERIFY PASS`; `make verify-dry-run` shows the plan and `make verify-test` runs the BATS contract tests.
 
 ## Codex workflow

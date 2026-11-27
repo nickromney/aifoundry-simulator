@@ -139,6 +139,7 @@ The complete supported/adapted/deferred boundary is kept in
 | Content Safety | `POST /contentsafety/text:analyze`, `text:shieldPrompt`; blocklist CRUD (+`?api-version=`) | 2024-09-01 shapes |
 | Azure AI Language PII | `POST /language/:analyze-text?api-version=2026-05-01` | `PiiEntityRecognition` only; accepts `Ocp-Apim-Subscription-Key` |
 | Management | `GET /foundry/health`, `/startup`; `/foundry/management/{status,deployments,semantic-cache,content-safety}` | admin-key gated; cache flush via `DELETE` |
+| Management resources | `PUT`, `GET`, `DELETE /foundry/management/{deployments,content-filters,blocklists}/{name}`, `/blocklists/{name}/items/{item_id}` | admin-key gated; config-file body shape; process-local ([ADR 0002](docs/adr/0002-runtime-writable-management-resources.md)) |
 
 `curl http://localhost:8020/` lists every entrypoint.
 
@@ -239,6 +240,12 @@ make lint         # ruff format --check, ruff check, yamllint
 make local-ci     # gitleaks + lint + test + compose-config (pre-push gate)
 ```
 
+The Terraform provider in
+[terraform-provider-foundrysim/](terraform-provider-foundrysim/README.md)
+manages deployments, content filters and blocklists on a running simulator.
+It needs Go; `make provider-check` runs its unit tests and `make
+provider-testacc` its acceptance tests against a throwaway simulator.
+
 The contract matrix gate (`tests/test_contract_matrix.py`) keeps
 [contracts/contract_matrix.yml](contracts/contract_matrix.yml) and the
 pytest `contract` markers in lockstep, so every documented behaviour has an
@@ -255,4 +262,6 @@ owning test.
 - PII detection guide: [docs/PII.md](docs/PII.md)
 - Azure vocabulary map: [docs/FOUNDRY-TERM-MAP.md](docs/FOUNDRY-TERM-MAP.md)
 - Why this repo exists: [docs/adr/0001-simulate-the-services-apim-defers-to.md](docs/adr/0001-simulate-the-services-apim-defers-to.md)
+- Why management resources are writable: [docs/adr/0002-runtime-writable-management-resources.md](docs/adr/0002-runtime-writable-management-resources.md)
+- Terraform provider: [terraform-provider-foundrysim](terraform-provider-foundrysim/README.md)
 - APIM pairing: [examples/apim-integration](examples/apim-integration/README.md)

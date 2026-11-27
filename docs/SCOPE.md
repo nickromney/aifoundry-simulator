@@ -55,6 +55,14 @@ Labels follow the sibling APIM simulator's discipline, enforced by
   before use
 - Config-driven everything via one JSON file; management surface under
   `/foundry/management/*`; `foundrysim` CLI as a thin HTTP client
+- Runtime-writable deployments, content filters, blocklists and blocklist
+  items: one management URL each with PUT, GET and DELETE, request bodies in
+  the config file's shape, and writes validated with the startup reference
+  rules ([ADR 0002](adr/0002-runtime-writable-management-resources.md)).
+  The config file sets the starting state; writes are process-local and lost
+  on restart
+- A Terraform/OpenTofu provider over those resources, built from this
+  checkout ([terraform-provider-foundrysim](../terraform-provider-foundrysim/README.md))
 
 `foundrysim inspect` composes existing read-only endpoints into a versioned JSON
 evidence envelope; partial failures produce exit 1. It is a non-atomic client
@@ -100,8 +108,11 @@ observation, with no new HTTP surface or hosted-agent capability. See the
 - Entra ID token *issuance*: no IMDS or Entra token endpoint. Token
   validation and role checks are opt-in via `auth.entra` (issuer + JWKS,
   flat role map, no RBAC scope inheritance)
-- Deployment CRUD via the management surface — the config file is the
-  single source of truth; restart to change deployments
+- Persisting runtime management writes, or writing them back to the config
+  file; changing resource-level settings (`name`, `auth`, root
+  `semantic_cache`, `content_safety`) without a restart
+- The `azapi`/`azurerm` providers deploying to the simulator unchanged (an
+  ARM facade); the sibling's analysis applies here too
 - Gateway concerns (token rate limits, quotas, products, subscriptions) —
   that is the sibling APIM simulator's job; compose the two instead
   (see [examples/apim-integration](../examples/apim-integration/README.md))

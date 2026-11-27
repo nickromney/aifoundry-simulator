@@ -15,7 +15,7 @@ BENCHMARK_SCENARIO ?= embeddings
 BENCHMARK_REQUESTS ?= 1000
 BENCHMARK_ENTRIES ?= 128
 
-.PHONY: help prereqs hooks build up up-keyless down restart logs smoke smoke-foundry smoke-cache smoke-safety test fmt lint lint-check lint-yaml compose-config local-ci
+.PHONY: help prereqs hooks build up up-keyless down restart logs smoke smoke-foundry smoke-cache smoke-safety test fmt lint lint-check lint-yaml compose-config local-ci provider-check provider-testacc
 
 help:
 	@printf "Run:\n"
@@ -44,6 +44,9 @@ help:
 	@printf $(HELP_FMT) "benchmark" "Measure CPU work (BENCHMARK_SCENARIO=embeddings|cache-hit|cache-miss)"
 	@printf $(HELP_FMT) "profile" "Write a CPU profile to .run/foundry.prof"
 	@printf $(HELP_FMT) "golden-check" "Verify deterministic embeddings/cache behavior against saved outputs"
+	@printf "\nTerraform provider (terraform-provider-foundrysim, needs Go):\n"
+	@printf $(HELP_FMT) "provider-check" "gofmt, go vet and unit tests"
+	@printf $(HELP_FMT) "provider-testacc" "Acceptance tests with terraform against a throwaway simulator"
 	@printf "\nAPIM + Foundry pairing:\n"
 	@printf $(HELP_FMT) "pairing-up" "Start the APIM gateway on localhost:8030 (run make up first)"
 	@printf $(HELP_FMT) "pairing-smoke" "Check APIM forwarding: auth, cache miss/hit, content safety, PII, streaming, embeddings, Responses"
@@ -150,3 +153,9 @@ pairing-down:
 # Targets come from verify-kit: verify, verify-dry-run, verify-test.
 VERIFY_SKILL := skills/verify-aifoundry-simulator
 include $(VERIFY_SKILL)/verify.mk
+
+provider-check:
+	$(MAKE) -C terraform-provider-foundrysim check
+
+provider-testacc:
+	$(MAKE) -C terraform-provider-foundrysim testacc
