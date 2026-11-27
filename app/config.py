@@ -203,8 +203,8 @@ def _parse_semantic_cache(raw: Any, *, context: str, defaults: SemanticCacheSett
     )
 
 
-def _parse_deployment(raw: Any, index: int, defaults: SemanticCacheSettings) -> Deployment:
-    context = f"deployments[{index}]"
+def parse_deployment(raw: Any, context: str, defaults: SemanticCacheSettings) -> Deployment:
+    """Parse one ``deployments`` entry; ``context`` prefixes error messages."""
     _require(isinstance(raw, dict), f"{context}: must be an object")
     name = raw.get("name")
     _require(isinstance(name, str) and name != "", f"{context}: name is required")
@@ -228,7 +228,7 @@ def _parse_deployment(raw: Any, index: int, defaults: SemanticCacheSettings) -> 
     else:
         content_filter = "default"
     semantic_cache = None
-    if "semantic_cache" in raw:
+    if raw.get("semantic_cache") is not None:  # null, like absent, inherits the root defaults
         semantic_cache = _parse_semantic_cache(raw["semantic_cache"], context=context, defaults=defaults)
     return Deployment(
         name=name,
@@ -241,8 +241,8 @@ def _parse_deployment(raw: Any, index: int, defaults: SemanticCacheSettings) -> 
     )
 
 
-def _parse_content_filter(raw: Any, index: int) -> ContentFilterPolicy:
-    context = f"content_filters[{index}]"
+def parse_content_filter(raw: Any, context: str) -> ContentFilterPolicy:
+    """Parse one ``content_filters`` entry; ``context`` prefixes error messages."""
     _require(isinstance(raw, dict), f"{context}: must be an object")
     name = raw.get("name")
     _require(isinstance(name, str) and name != "", f"{context}: name is required")
@@ -283,25 +283,28 @@ def _parse_blocklist(raw: Any, index: int) -> Blocklist:
     _require(isinstance(description, str), f"{context}: description must be a string")
     items_raw = raw.get("items", [])
     _require(isinstance(items_raw, list), f"{context}: items must be a list")
-    items: list[BlocklistItem] = []
-    for item_index, item_raw in enumerate(items_raw):
-        item_context = f"{context}.items[{item_index}]"
-        _require(isinstance(item_raw, dict), f"{item_context}: must be an object")
-        text = item_raw.get("text")
-        _require(isinstance(text, str) and text != "", f"{item_context}: text is required")
-        is_regex = item_raw.get("is_regex", False)
-        _require(isinstance(is_regex, bool), f"{item_context}: is_regex must be a boolean")
-        item_description = item_raw.get("description", "")
-        _require(isinstance(item_description, str), f"{item_context}: description must be a string")
-        if is_regex:
-            try:
-                re.compile(text)
-            except re.error as exc:
-                raise ConfigError(f"{item_context}: invalid regular expression: {exc}") from exc
-        items.append(
-            BlocklistItem(item_id=f"{name}-{item_index}", text=text, is_regex=is_regex, description=item_description)
-        )
+    items = [
+        parse_blocklist_item(item_raw, f"{context}.items[{item_index}]", item_id=f"{name}-{item_index}")
+        for item_index, item_raw in enumerate(items_raw)
+    ]
     return Blocklist(name=name, description=description, items=items)
+
+
+def parse_blocklist_item(raw: Any, context: str, *, item_id: str) -> BlocklistItem:
+    """Parse one blocklist ``items`` entry; ``context`` prefixes error messages."""
+    _require(isinstance(raw, dict), f"{context}: must be an object")
+    text = raw.get("text")
+    _require(isinstance(text, str) and text != "", f"{context}: text is required")
+    is_regex = raw.get("is_regex", False)
+    _require(isinstance(is_regex, bool), f"{context}: is_regex must be a boolean")
+    description = raw.get("description", "")
+    _require(isinstance(description, str), f"{context}: description must be a string")
+    if is_regex:
+        try:
+            re.compile(text)
+        except re.error as exc:
+            raise ConfigError(f"{context}: invalid regular expression: {exc}") from exc
+    return BlocklistItem(item_id=item_id, text=text, is_regex=is_regex, description=description)
 
 
 def _parse_lexicons(raw: Any) -> dict[str, dict[int, tuple[str, ...]]]:
@@ -460,7 +463,7 @@ def load_config(path: str | Path | None = None) -> FoundryConfig:
     )
     deployments: dict[str, Deployment] = {}
     for index, raw in enumerate(deployments_raw):
-        deployment = _parse_deployment(raw, index, cache_defaults)
+        deployment = parse_deployment(raw, f"deployments[{index}]", cache_defaults)
         _require(deployment.name not in deployments, f"duplicate deployment name '{deployment.name}'")
         deployments[deployment.name] = deployment
 
@@ -468,7 +471,7 @@ def load_config(path: str | Path | None = None) -> FoundryConfig:
     _require(isinstance(content_filters_raw, list), "content_filters must be a list")
     content_filters: dict[str, ContentFilterPolicy] = {}
     for index, raw in enumerate(content_filters_raw):
-        policy = _parse_content_filter(raw, index)
+        policy = parse_content_filter(raw, f"content_filters[{index}]")
         _require(policy.name not in content_filters, f"duplicate content filter name '{policy.name}'")
         content_filters[policy.name] = policy
     if "default" not in content_filters:
@@ -501,11 +504,12 @@ def load_config(path: str | Path | None = None) -> FoundryConfig:
         lexicons=lexicons,
         simulation_triggers=simulation_triggers,
     )
-    _validate_references(config)
+    validate_references(config)
     return config
 
 
-def _validate_references(config: FoundryConfig) -> None:
+def validate_references(config: FoundryConfig) -> None:
+    """Check cross-resource references; startup and runtime writes share it."""
     for deployment in config.deployments.values():
         if deployment.content_filter is not None:
             _require(

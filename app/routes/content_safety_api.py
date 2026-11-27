@@ -335,8 +335,8 @@ async def delete_blocklist(name: str, request: Request) -> Response:
         return errors.content_safety_error(
             409,
             "Conflict",
-            f"Blocklist '{name}' is referenced by content filter(s) {referencing} in the loaded config; "
-            "remove the reference from the config file instead of deleting at runtime.",
+            f"Blocklist '{name}' is referenced by content filter(s) {referencing}; "
+            "remove the reference first (PUT /foundry/management/content-filters/{name}, or the config file).",
         )
     del state.blocklists[name]
     return Response(status_code=204)
